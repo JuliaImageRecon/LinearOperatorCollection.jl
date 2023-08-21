@@ -1,6 +1,8 @@
-using LinearOperatorCollection
+using SparsityOperators
 using Test
+using Random
+using LinearAlgebra
+using FFTW
 
-@testset "LinearOperatorCollection.jl" begin
-    # Write your tests here.
-end
+include("testNormalOp.jl")
+include("testOperators.jl")
