@@ -1,4 +1,4 @@
-using SparsityOperators
+using LinearOperatorCollection
 using Test
 using Random
 using LinearAlgebra
