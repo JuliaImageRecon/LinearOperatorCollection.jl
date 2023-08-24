@@ -86,14 +86,14 @@ function testWeighting(N=512)
   Random.seed!(1234)
   x1 = rand(N)
   weights = rand(N)
-  W = WeightingOp(weights)
+  W = constructLinearOperator(WeightingOp{Float64}; weights)
   y1 = W*x1
   y = weights .* x1
 
   @test norm(y1 - y) / norm(y) ≈ 0 atol=0.01
 
   x2 = rand(2*N)
-  W2 = WeightingOp(weights,2)
+  W2 = constructLinearOperator(WeightingOp{Float64}; weights, rep=2)
   y2 = W2*x2
   y = repeat(weights,2) .* x2
 
@@ -102,7 +102,7 @@ end
 
 function testGradOp1d(N=512)
   x = rand(N)
-  G = GradientOp(eltype(x),size(x))
+  G = constructLinearOperator(GradientOp{eltype(x)}, shape=size(x))
   G0 = Bidiagonal(ones(N),-ones(N-1), :U)[1:N-1,:]
 
   y = G*x
@@ -117,7 +117,7 @@ end
 
 function testGradOp2d(N=64)
   x = repeat(1:N,1,N)
-  G = GradientOp(eltype(x),size(x))
+  G = constructLinearOperator(GradientOp{eltype(x)}, shape=size(x))
   G_1d = Bidiagonal(ones(N),-ones(N-1), :U)[1:N-1,:]
 
   y = G*vec(x)
@@ -137,12 +137,12 @@ function testSampling(N=64)
   x = rand(ComplexF64,N,N)
   # index-based sampling
   idx = shuffle(collect(1:N^2)[1:N*div(N,2)])
-  SOp = SamplingOp(idx,(N,N))
+  SOp = constructLinearOperator(SamplingOp{ComplexF64}, pattern=idx, shape=(N,N))
   y = SOp*vec(x)
   x2 = adjoint(SOp)*y
   # mask-based sampling
   msk = zeros(Bool,N*N);msk[idx].=true
-  SOp2 = SamplingOp(msk)
+  SOp2 = constructLinearOperator(SamplingOp{ComplexF64}, pattern=msk)
   y2 = ComplexF64.(SOp2*vec(x))
   # references
   y_ref = vec(x[idx])
@@ -163,26 +163,137 @@ function testWavelet(M=64,N=60)
   @test norm(x_reco - x) / norm(x) ≈ 0 atol=0.001
 end
 
+# test FourierOperators
+function testNFFT2d(N=16)
+  # random image
+  x = zeros(ComplexF64,N,N)
+  for i=1:N,j=1:N
+    x[i,j] = rand()
+  end
+
+  # FourierMatrix
+  idx = CartesianIndices((N,N))[collect(1:N^2)]
+  F = [ exp(-2*pi*im*((idx[j][1]-1)*(idx[k][1]-1)+(idx[j][2]-1)*(idx[k][2]-1))/N) for j=1:N^2, k=1:N^2 ]
+  F_adj = F'
+
+  # Operators
+  tr = CartesianTrajectory(Float64,N,N)
+  F_nfft = NFFTOp((N,N),tr,symmetrize=false)
+  F_exp = ExplicitOp((N,N),tr,zeros(ComplexF64,N,N),symmetrize=false)
+
+  # test agains FourierOperators
+  y = vec( ifftshift(reshape(F*vec(fftshift(x)),N,N)) )
+  y_adj = vec( ifftshift(reshape(F_adj*vec(fftshift(x)),N,N)) )
+
+  y_nfft = F_nfft*vec(x)
+  y_adj_nfft = adjoint(F_nfft) * vec(x)
+
+  y_exp = F_exp*vec(x)
+  y_adj_exp = adjoint(F_exp) * vec(x)
+
+  @test y     ≈ y_nfft      rtol = 1e-2
+  @test y     ≈ y_exp       rtol = 1e-2
+  @test y_adj ≈ y_adj_nfft  rtol = 1e-2
+  @test y_adj ≈ y_adj_exp   rtol = 1e-2
+
+  # test AHA w/o Toeplitz
+  F_nfft.toeplitz = false
+  AHA = normalOperator(F_nfft)
+  y_AHA_nfft = AHA * vec(x)
+  y_AHA = F' * F * vec(x)
+  @test y_AHA ≈ y_AHA_nfft   rtol = 1e-2
+
+  # test AHA with Toeplitz
+  F_nfft.toeplitz = true
+  AHA = normalOperator(F_nfft)
+  y_AHA_nfft = AHA * vec(x)
+  y_AHA_nfft = adjoint(F_nfft) * F_nfft * vec(x)
+  y_AHA = F' * F * vec(x)
+  @test y_AHA ≈ y_AHA_nfft   rtol = 1e-2
+
+  # test type stability;
+  # TODO: Ensure type stability for Trajectory objects and test here
+  nodes = Float32.(tr.nodes)
+  F_nfft = NFFTOp((N,N),nodes,symmetrize=false)
+
+  y_nfft = F_nfft * vec(ComplexF32.(x))
+  y_adj_nfft = adjoint(F_nfft) * vec(ComplexF32.(x))
+
+  @test Complex{eltype(nodes)} === eltype(y_nfft)
+  @test Complex{eltype(nodes)} === eltype(y_adj_nfft)
+end
+
+function testNFFT3d(N=12)
+  # random image
+  x = zeros(ComplexF64,N,N,N)
+  for i=1:N,j=1:N,k=1:N
+    x[i,j,k] = rand()
+  end
+
+  # FourierMatrix
+  idx = CartesianIndices((N,N,N))[collect(1:N^3)]
+  F = [ exp(-2*pi*im*((idx[j][1]-1)*(idx[k][1]-1)+(idx[j][2]-1)*(idx[k][2]-1)+(idx[j][3]-1)*(idx[k][3]-1))/N) for j=1:N^3, k=1:N^3 ]
+  F_adj = F'
+
+  # Operators
+  tr = CartesianTrajectory3D(Float64,N,N,numSlices=N)
+  F_nfft = constructLinearOperator(NFFTOp{ComplexF64}, shape=(N,N,N), nodes=tr, symmetrize=false)
+  F_exp = ExplicitOp((N,N,N),tr,zeros(ComplexF64,N,N,N),symmetrize=false)
+
+  # test agains FourierOperators
+  y = vec( ifftshift(reshape(F*vec(fftshift(x)),N,N,N)) )
+  y_adj = vec( ifftshift(reshape(F_adj*vec(fftshift(x)),N,N,N)) )
+
+  y_nfft = F_nfft*vec(x)
+  y_adj_nfft = adjoint(F_nfft) * vec(x)
+
+  y_exp = F_exp*vec(x)
+  y_adj_exp = adjoint(F_exp) * vec(x)
+
+  @test  y     ≈ y_exp      rtol = 1e-2
+  @test  y     ≈ y_nfft     rtol = 1e-2
+  @test  y_adj ≈ y_adj_exp  rtol = 1e-2
+  @test  y_adj ≈ y_adj_nfft rtol = 1e-2
+
+  # test AHA w/o Toeplitz
+  F_nfft.toeplitz = false
+  AHA = SparsityOperators.normalOperator(F_nfft)
+  y_AHA_nfft = AHA * vec(x)
+  y_AHA = F' * F * vec(x)
+  @test y_AHA ≈ y_AHA_nfft   rtol = 1e-2
+
+  # test AHA with Toeplitz
+  F_nfft.toeplitz = true
+  AHA = normalOperator(F_nfft)
+  y_AHA_nfft = AHA * vec(x)
+  y_AHA_nfft = adjoint(F_nfft) * F_nfft * vec(x)
+  y_AHA = F' * F * vec(x)
+  @test y_AHA ≈ y_AHA_nfft   rtol = 1e-2
+end
+
 @testset "Linear Operators" begin
-  @info "test DCT-II and DCT-IV"
+  @info "test DCT-II and DCT-IV Ops"
   for N in [2,8,16,32]
     testDCT1d(N)
   end
-  @info "test FFT"
+  @info "test FFTOp"
   for N in [8,16,32]
     testFFT1d(N,false)
     testFFT1d(N,true)
     testFFT2d(N,false)
     testFFT2d(N,true)
   end
-  @info "test Weighting"
+  @info "test WeightingOp"
   testWeighting(512)
-  @info "test gradientOp"
+  @info "test GradientOp"
   testGradOp1d(512)
   testGradOp2d(64) 
-  @info "test sampling"
+  @info "test SamplingOp"
   testSampling(64)
   @info "test WaveletOp"
   testWavelet(64,64)
   testWavelet(64,60)
+  @info "test NFFTOp"
+  #testNFFT2d()
+  #testNFFT3d()
 end

@@ -5,7 +5,7 @@ function LinearOperatorCollection.constructLinearOperator(::Type{Op};
   return DCTOpImpl(T, shape, dcttype)
 end
 
-mutable struct DCTOpImpl{T} <: AbstractLinearOperatorFromCollection{T}
+mutable struct DCTOpImpl{T} <: DCTOp{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool

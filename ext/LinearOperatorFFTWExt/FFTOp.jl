@@ -6,7 +6,7 @@ function LinearOperatorCollection.constructLinearOperator(::Type{Op};
   return FFTOpImpl(T, shape, shift; unitary, cuda)
 end
 
-mutable struct FFTOpImpl{T} <: AbstractLinearOperatorFromCollection{T}
+mutable struct FFTOpImpl{T} <: FFTOp{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool

@@ -5,7 +5,7 @@ N = 512
 Random.seed!(1234)
 x = rand(N)
 A = rand(N,N)
-W = WeightingOp(rand(N))
+W = constructLinearOperator(WeightingOp{Float64}, weights=rand(N))
 
 y1 = adjoint(A)*W*A*x
 y = normalOperator(A,W)*x

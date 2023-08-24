@@ -1,28 +1,36 @@
-export GradientOp
+function LinearOperatorCollection.constructLinearOperator(::Type{Op};
+  shape::Tuple, dim::Union{Nothing,Int64}=nothing) where Op <: GradientOp{T} where T <: Number
+  if dim == nothing
+    return GradientOpImpl(T, shape)
+  else
+    return GradientOpImpl(T, shape, dim)
+  end
+end
+
 
 """
-    gradOp(T::Type, shape::NTuple{1,Int64})
+    GradientOpImpl(T::Type, shape::NTuple{1,Int64})
 
 1d gradient operator for an array of size `shape`
 """
-GradientOp(T::Type, shape::NTuple{1,Int64}) = GradientOp(T,shape,1)
+GradientOpImpl(T::Type, shape::NTuple{1,Int64}) = GradientOpImpl(T,shape,1)
 
 """
-    gradOp(T::Type, shape::NTuple{2,Int64})
+    GradientOpImpl(T::Type, shape::NTuple{2,Int64})
 
 2d gradient operator for an array of size `shape`
 """
-function GradientOp(T::Type, shape::NTuple{2,Int64})
-  return vcat( GradientOp(T,shape,1), GradientOp(T,shape,2) ) 
+function GradientOpImpl(T::Type, shape::NTuple{2,Int64})
+  return vcat( GradientOpImpl(T,shape,1), GradientOpImpl(T,shape,2) ) 
 end
 
 """
-    gradOp(T::Type, shape::NTuple{3,Int64})
+    GradientOpImpl(T::Type, shape::NTuple{3,Int64})
 
 3d gradient operator for an array of size `shape`
 """
-function GradientOp(T::Type, shape::NTuple{3,Int64})
-  return vcat( GradientOp(T,shape,1), GradientOp(T,shape,2), GradientOp(T,shape,3) ) 
+function GradientOpImpl(T::Type, shape::NTuple{3,Int64})
+  return vcat( GradientOpImpl(T,shape,1), GradientOpImpl(T,shape,2), GradientOpImpl(T,shape,3) ) 
 end
 
 """
@@ -31,7 +39,7 @@ end
 directional gradient operator along the dimension `dim`
 for an array of size `shape`
 """
-function GradientOp(T::Type, shape::NTuple{N,Int64}, dim::Int64) where N
+function GradientOpImpl(T::Type, shape::NTuple{N,Int64}, dim::Int64) where N
   nrow = div( (shape[dim]-1)*prod(shape), shape[dim] )
   ncol = prod(shape)
   return LinearOperator{T}(nrow, ncol, false, false,
