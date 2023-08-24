@@ -4,10 +4,10 @@ function testDCT1d(N=32)
   for i=1:5
     x .+= rand()*cos.(rand(1:N^2)*collect(1:N^2)) .+ 1im*rand()*cos.(rand(1:N^2)*collect(1:N^2))
   end
-  D1 = DCTOp(ComplexF64,(N^2,),2)
+  D1 = constructLinearOperator(DCTOp{ComplexF64}, shape=(N^2,), dcttype=2)
   D2 = sqrt(2/N^2)*[cos(pi/(N^2)*j*(k+0.5)) for j=0:N^2-1,k=0:N^2-1]
   D2[1,:] .*= 1/sqrt(2)
-  D3 = DCTOp(ComplexF64,(N^2,),4)
+  D3 = constructLinearOperator(DCTOp{ComplexF64}, shape=(N^2,), dcttype=4)
   D4 = sqrt(2/N^2)*[cos(pi/(N^2)*(j+0.5)*(k+0.5)) for j=0:N^2-1,k=0:N^2-1]
 
   y1 = D1*x
@@ -32,7 +32,7 @@ function testFFT1d(N=32,shift=true)
   for i=1:5
     x .+= rand()*cos.(rand(1:N^2)*collect(1:N^2))
   end
-  D1 = FFTOp(ComplexF64,(N^2,),shift)
+  D1 = constructLinearOperator(FFTOp{ComplexF64}, shape=(N^2,), shift=shift)
   D2 =  1.0/N*[exp(-2*pi*im*j*k/N^2) for j=0:N^2-1,k=0:N^2-1]
 
   y1 = D1*x
@@ -58,7 +58,7 @@ function testFFT2d(N=32,shift=true)
   for i=1:5
     x .+= rand()*cos.(rand(1:N^2)*collect(1:N^2))
   end
-  D1 = FFTOp(ComplexF64,(N,N),shift)
+  D1 = constructLinearOperator(FFTOp{ComplexF64}, shape=(N,N), shift=shift)
 
   idx = CartesianIndices((N,N))[collect(1:N^2)]
   D2 =  1.0/N*[ exp(-2*pi*im*((idx[j][1]-1)*(idx[k][1]-1)+(idx[j][2]-1)*(idx[k][2]-1))/N) for j=1:N^2, k=1:N^2 ]
@@ -156,7 +156,7 @@ end
 
 function testWavelet(M=64,N=60)
   x = rand(M,N)
-  WOp = WaveletOp(Float64,(M,N))
+  WOp = constructLinearOperator(WaveletOp{Float64}, shape=(M,N))
   x_wavelet = WOp*vec(x)
   x_reco = reshape( adjoint(WOp)*x_wavelet, M, N)
 

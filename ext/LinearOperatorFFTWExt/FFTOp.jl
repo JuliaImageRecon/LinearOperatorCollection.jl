@@ -1,7 +1,12 @@
-export FFTOp
+export FFTOpImpl
 import Base.copy
 
-mutable struct FFTOp{T} <: AbstractLinearOperator{T}
+function LinearOperatorCollection.constructLinearOperator(::Type{Op};
+  shape::Tuple, shift::Bool=true, unitary::Bool=true, cuda::Bool=false) where Op <: FFTOp{T} where T <: Number
+  return FFTOpImpl(T, shape, shift; unitary, cuda)
+end
+
+mutable struct FFTOpImpl{T} <: AbstractLinearOperatorFromCollection{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -23,10 +28,10 @@ mutable struct FFTOp{T} <: AbstractLinearOperator{T}
   unitary::Bool
 end
 
-LinearOperators.storage_type(op::FFTOp) = typeof(op.Mv5)
+LinearOperators.storage_type(op::FFTOpImpl) = typeof(op.Mv5)
 
 """
-  FFTOp(T::Type, shape::Tuple, shift=true, unitary=true)
+  FFTOpImpl(T::Type, shape::Tuple, shift=true, unitary=true)
 
 returns an operator which performs an FFT on Arrays of type T
 
@@ -36,7 +41,7 @@ returns an operator which performs an FFT on Arrays of type T
 * (`shift=true`)  - if true, fftshifts are performed
 * (`unitary=true`)  - if true, FFT is normalized such that it is unitary
 """
-function FFTOp(T::Type, shape::NTuple{D,Int64}, shift::Bool=true; unitary::Bool=true, cuda::Bool=false) where D
+function FFTOpImpl(T::Type, shape::NTuple{D,Int64}, shift::Bool=true; unitary::Bool=true, cuda::Bool=false) where D
   
   #tmpVec = cuda ? CuArray{T}(undef,shape) : Array{Complex{real(T)}}(undef, shape)
   tmpVec = Array{Complex{real(T)}}(undef, shape)
@@ -54,7 +59,7 @@ function FFTOp(T::Type, shape::NTuple{D,Int64}, shift::Bool=true; unitary::Bool=
   let shape_=shape, plan_=plan, iplan_=iplan, tmpVec_=tmpVec, facF_=facF, facB_=facB
 
   if shift
-    return FFTOp{T}(prod(shape), prod(shape), false, false
+    return FFTOpImpl{T}(prod(shape), prod(shape), false, false
               , (res, x) -> fft_multiply_shift!(res, plan_, x, shape_, facF_, tmpVec_) 
               , nothing
               , (res, x) -> fft_multiply_shift!(res, iplan_, x, shape_, facB_, tmpVec_) 
@@ -64,7 +69,7 @@ function FFTOp(T::Type, shape::NTuple{D,Int64}, shift::Bool=true; unitary::Bool=
               , shift
               , unitary)
   else
-    return FFTOp{T}(prod(shape), prod(shape), false, false
+    return FFTOpImpl{T}(prod(shape), prod(shape), false, false
             , (res, x) -> fft_multiply!(res, plan_, x, facF_, tmpVec_) 
             , nothing
             , (res, x) -> fft_multiply!(res, iplan_, x, facB_, tmpVec_)
@@ -91,6 +96,6 @@ function fft_multiply_shift!(res::AbstractVector{T}, plan::P, x::AbstractVector{
 end
 
 
-function Base.copy(S::FFTOp)
-  return FFTOp(eltype(S), size(S.plan), S.shift, unitary=S.unitary)
+function Base.copy(S::FFTOpImpl)
+  return FFTOpImpl(eltype(S), size(S.plan), S.shift, unitary=S.unitary)
 end

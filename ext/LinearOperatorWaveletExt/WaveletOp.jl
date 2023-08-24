@@ -1,9 +1,10 @@
-export WaveletOp
+export WaveletOpImpl
 
-import LinearOperatorCollection: constructLinearOperator
+using LinearOperatorCollection, Wavelets
 
-function constructLinearOperator(::Type{Op}; eltype::Type, shape::Tuple, wt=wavelet(WT.db2)) where Op <: WaveletOp{T} where T <: Number
-  return WaveletOpImpl(eltype, shape, wt)
+function LinearOperatorCollection.constructLinearOperator(::Type{Op};
+       shape::Tuple, wt=wavelet(WT.db2)) where Op <: WaveletOp{T} where T <: Number
+  return WaveletOpImpl(T, shape, wt)
 end
 
 """
