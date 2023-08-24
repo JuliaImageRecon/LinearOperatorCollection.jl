@@ -9,6 +9,7 @@ LinearOperators = "5c8ed15e-5a4c-59e4-a42b-c7e8811fb125"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [weakdeps]
 Wavelets = "29a6e085-ba6d-5f35-a997-948ac2efa89a"
@@ -18,7 +19,7 @@ NFFT = "efe261a4-0d2b-5849-be55-fc731d526b0d"
 [extensions]
 LinearOperatorWaveletExt = "Wavelets"
 LinearOperatorFFTWExt = "FFTW"
-LinearOperatorNFFTExt = "NFFT"
+LinearOperatorNFFTExt = ["NFFT", "FFTW"]
 
 [compat]
 julia = "1.6"

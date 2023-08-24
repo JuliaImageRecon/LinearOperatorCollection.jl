@@ -1,7 +1,7 @@
 export vectorizePattern
 
-function LinearOperatorCollection.constructLinearOperator(::Type{Op};
-  pattern::P, shape::Tuple=()) where {P, Op <: SamplingOp{T}} where T <: Number
+function LinearOperatorCollection.SamplingOp(::Type{T};
+  pattern::P, shape::Tuple=()) where {P} where T <: Number
   if length(shape) == 0
     return SamplingOpImpl(pattern)
   else

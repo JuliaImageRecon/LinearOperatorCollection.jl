@@ -1,10 +1,13 @@
-export NFFTOpImpl
 import Base.adjoint
 
-function LinearOperatorCollection.constructLinearOperator(::Type{Op};
-    shape::Tuple, nodes::AbstractMatrix{T}, toeplitz=false, oversamplingFactor=1.25, 
-   kernelSize=3, kargs...) where Op <: NFFTOp{T} where T <: Number
-  return NFFTOpImpl(T, shape, nodes; toeplitz, oversamplingFactor, kernelSize, kargs... )
+function LinearOperatorCollection.createLinearOperator(::Type{Op}; kargs...) where Op <: NFFTOp{T} where T <: Number
+  return NFFTOp(T; kargs...)
+end
+
+function LinearOperatorCollection.NFFTOp(::Type{T};
+    shape::Tuple, nodes::AbstractMatrix{U}, toeplitz=false, oversamplingFactor=1.25, 
+   kernelSize=3, kargs...) where {U <: Number, T <: Number}
+  return NFFTOpImpl(shape, nodes; toeplitz, oversamplingFactor, kernelSize, kargs... )
 end
 
 mutable struct NFFTOpImpl{T} <: NFFTOp{T}
@@ -155,7 +158,7 @@ function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W=opEye(T,siz
   if S.toeplitz
     return NFFTToeplitzNormalOp(S,W)
   else
-    return NormalOp(S,W)
+    return LinearOperatorCollection.NormalOpImpl(S,W)
   end
 end
 

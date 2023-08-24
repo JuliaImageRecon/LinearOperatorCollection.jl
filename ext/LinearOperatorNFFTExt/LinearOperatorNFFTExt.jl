@@ -1,6 +1,6 @@
 module LinearOperatorNFFTExt
 
-using LinearOperatorCollection, NFFT
+using LinearOperatorCollection, NFFT, FFTW
 
 include("NFFTOp.jl")
 

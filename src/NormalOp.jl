@@ -1,7 +1,7 @@
 export normalOperator
 
-function LinearOperatorCollection.constructLinearOperator(::Type{Op};
-  parent, weights, tmp::Union{Nothing,Vector{T}}) where Op <: NormalOp{T} where T <: Number
+function LinearOperatorCollection.NormalOp(::Type{T};
+  parent, weights, tmp::Union{Nothing,Vector{T}}) where T <: Number
   if tmp == nothing
     return NormalOpImpl(parent, weights)
   else

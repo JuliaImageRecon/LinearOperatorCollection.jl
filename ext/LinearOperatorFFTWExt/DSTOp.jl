@@ -1,10 +1,5 @@
 export DSTOpImpl
 
-function LinearOperatorCollection.constructLinearOperator(::Type{Op};
-  shape::Tuple, shift::Bool=true, unitary::Bool=true, cuda::Bool=false) where Op <: DSTOp{T} where T <: Number
-  return DSTOpImpl(T, shape)
-end
-
 mutable struct DSTOpImpl{T} <: DSTOp{T}
   nrow :: Int
   ncol :: Int
@@ -28,7 +23,7 @@ end
 LinearOperators.storage_type(op::DSTOpImpl) = typeof(op.Mv5)
 
 """
-  DSTOpImpl(T::Type, shape::Tuple)
+  DSTOp(T::Type, shape::Tuple)
 
 returns a `LinearOperator` which performs a DST on a given input array.
 
@@ -36,7 +31,7 @@ returns a `LinearOperator` which performs a DST on a given input array.
 * `T::Type`       - type of the array to transform
 * `shape::Tuple`  - size of the array to transform
 """
-function DSTOpImpl(T::Type, shape::Tuple)
+function LinearOperatorCollection.DSTOp(T::Type; shape::Tuple)
   tmp=Array{Complex{real(T)}}(undef, shape)
 
   plan = FFTW.plan_r2r!(tmp,FFTW.RODFT10)

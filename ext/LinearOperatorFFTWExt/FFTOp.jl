@@ -1,11 +1,6 @@
 export FFTOpImpl
 import Base.copy
 
-function LinearOperatorCollection.constructLinearOperator(::Type{Op};
-  shape::Tuple, shift::Bool=true, unitary::Bool=true, cuda::Bool=false) where Op <: FFTOp{T} where T <: Number
-  return FFTOpImpl(T, shape, shift; unitary, cuda)
-end
-
 mutable struct FFTOpImpl{T} <: FFTOp{T}
   nrow :: Int
   ncol :: Int
@@ -31,7 +26,7 @@ end
 LinearOperators.storage_type(op::FFTOpImpl) = typeof(op.Mv5)
 
 """
-  FFTOpImpl(T::Type, shape::Tuple, shift=true, unitary=true)
+  FFTOp(T::Type; shape::Tuple, shift=true, unitary=true)
 
 returns an operator which performs an FFT on Arrays of type T
 
@@ -41,7 +36,7 @@ returns an operator which performs an FFT on Arrays of type T
 * (`shift=true`)  - if true, fftshifts are performed
 * (`unitary=true`)  - if true, FFT is normalized such that it is unitary
 """
-function FFTOpImpl(T::Type, shape::NTuple{D,Int64}, shift::Bool=true; unitary::Bool=true, cuda::Bool=false) where D
+function LinearOperatorCollection.FFTOp(T::Type; shape::NTuple{D,Int64}, shift::Bool=true, unitary::Bool=true, cuda::Bool=false) where D
   
   #tmpVec = cuda ? CuArray{T}(undef,shape) : Array{Complex{real(T)}}(undef, shape)
   tmpVec = Array{Complex{real(T)}}(undef, shape)

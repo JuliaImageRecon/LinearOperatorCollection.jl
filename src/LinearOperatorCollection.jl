@@ -6,6 +6,7 @@ import LinearAlgebra.BLAS: gemv, gemv!
 import LinearAlgebra: BlasFloat, normalize!, norm, rmul!, lmul!
 using SparseArrays
 using Random
+using InteractiveUtils
 
 using Reexport
 @reexport using Reexport
@@ -26,7 +27,7 @@ function wrapProd(prod::Function)
   return λ
 end
 
-export linearOperatorList, constructLinearOperator
+export linearOperatorList, createLinearOperator
 export AbstractLinearOperatorFromCollection, WaveletOp, FFTOp, DCTOp, DSTOp, NFFTOp,
        SamplingOp, NormalOp, WeightingOp, GradientOp
 
@@ -41,15 +42,22 @@ abstract type NormalOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type WeightingOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type GradientOp{T} <: AbstractLinearOperatorFromCollection{T} end
 
-function constructLinearOperator(::Type{<:AbstractLinearOperatorFromCollection}, args...; kargs...) 
-  error("Operator can't be constructed. You need to load another package!")
-end
 
 """
   returns a list of currently implemented `LinearOperator`s
 """
 function linearOperatorList()
   return subtypes(AbstractLinearOperatorFromCollection)
+end
+
+# Next we create the factory methods. We probably want to given
+# a better error message if the extension module is not loaded
+for op in linearOperatorList()
+  @eval begin
+    function createLinearOperator(::Type{ Op }; kargs...) where Op <: $op{T} where T <: Number
+      return $op(T; kargs...)
+    end
+  end
 end
 
 include("GradientOp.jl")

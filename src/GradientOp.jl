@@ -1,5 +1,5 @@
-function LinearOperatorCollection.constructLinearOperator(::Type{Op};
-  shape::Tuple, dim::Union{Nothing,Int64}=nothing) where Op <: GradientOp{T} where T <: Number
+function LinearOperatorCollection.GradientOp(::Type{T};
+  shape::Tuple, dim::Union{Nothing,Int64}=nothing) where T <: Number
   if dim == nothing
     return GradientOpImpl(T, shape)
   else

@@ -1,10 +1,5 @@
 export DCTOpImpl
 
-function LinearOperatorCollection.constructLinearOperator(::Type{Op};
-  shape::Tuple, dcttype::Int) where Op <: DCTOp{T} where T <: Number
-  return DCTOpImpl(T, shape, dcttype)
-end
-
 mutable struct DCTOpImpl{T} <: DCTOp{T}
   nrow :: Int
   ncol :: Int
@@ -37,7 +32,7 @@ returns a `DCTOpImpl <: AbstractLinearOperator` which performs a DCT on a given 
 * `shape::Tuple`  - size of the array to transform
 * `dcttype`       - type of DCT (currently `2` and `4` are supported)
 """
-function DCTOpImpl(T::Type, shape::Tuple, dcttype=2)
+function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, dcttype=2)
 
   tmp=Array{Complex{real(T)}}(undef, shape) 
   if dcttype == 2
