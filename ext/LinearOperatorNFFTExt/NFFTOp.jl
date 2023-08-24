@@ -1,9 +1,5 @@
 import Base.adjoint
 
-function LinearOperatorCollection.createLinearOperator(::Type{Op}; kargs...) where Op <: NFFTOp{T} where T <: Number
-  return NFFTOp(T; kargs...)
-end
-
 function LinearOperatorCollection.NFFTOp(::Type{T};
     shape::Tuple, nodes::AbstractMatrix{U}, toeplitz=false, oversamplingFactor=1.25, 
    kernelSize=3, kargs...) where {U <: Number, T <: Number}
