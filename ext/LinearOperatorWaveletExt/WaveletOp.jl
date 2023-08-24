@@ -1,5 +1,11 @@
 export WaveletOp
 
+import LinearOperatorCollection: constructLinearOperator
+
+function constructLinearOperator(::Type{Op}; eltype::Type, shape::Tuple, wt=wavelet(WT.db2)) where Op <: WaveletOp{T} where T <: Number
+  return WaveletOpImpl(eltype, shape, wt)
+end
+
 """
   WaveletOp(shape, wt=wavelet(WT.db2))
 
@@ -11,7 +17,7 @@ a given input array.
 * `shape`                 - size of the Array to transform
 * (`wt=wavelet(WT.db2)`)  - Wavelet to apply
 """
-function WaveletOp(T::Type, shape, wt=wavelet(WT.db2))
+function WaveletOpImpl(T::Type, shape, wt=wavelet(WT.db2))
   return LinearOperator(T, prod(shape), prod(shape), false, false
             , (res,x)->dwt!(reshape(res,shape), reshape(x,shape), wt)
             , nothing

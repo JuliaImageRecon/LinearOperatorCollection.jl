@@ -11,8 +11,6 @@ using Random
 using Reexport
 @reexport using Reexport
 @reexport using LinearOperators
-@reexport using FFTW
-@reexport using Wavelets
 
 LinearOperators.use_prod5!(op::opEye) = false
 LinearOperators.has_args5(op::opEye) = false
@@ -33,10 +31,6 @@ function wrapProd(prod::Function)
   return λ
 end
 
-include("FFTOp.jl")
-include("DCTOp.jl")
-include("DSTOp.jl")
-include("WaveletOp.jl")
 include("GradientOp.jl")
 include("SamplingOp.jl")
 include("WeightingOp.jl")
@@ -44,7 +38,20 @@ include("NormalOp.jl")
 
 export linearOperator, linearOperatorList
 
-linearOperator(op::Nothing,shape,T::Type=ComplexF32) = nothing
+export constructLinearOperator
+export AbstractLinearOperatorFromCollection, WaveletOp, FFTOp, DCTOp, DSTOp
+
+abstract type AbstractLinearOperatorFromCollection{T} <: AbstractLinearOperator{T} end
+abstract type WaveletOp{T} <: AbstractLinearOperatorFromCollection{T} end
+abstract type FFTOp{T} <: AbstractLinearOperatorFromCollection{T} end
+abstract type DCTOp{T} <: AbstractLinearOperatorFromCollection{T} end
+abstract type DSTOp{T} <: AbstractLinearOperatorFromCollection{T} end
+
+function constructLinearOperator(::Type{<:AbstractLinearOperatorFromCollection}, args...; kargs...) 
+  error("Operator can't be constructed. You need to load another package!")
+end
+
+linearOperator(op::Nothing, shape, T::Type=ComplexF32) = nothing
 
 """
   returns a list of currently implemented `LinearOperator`s
