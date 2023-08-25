@@ -2,7 +2,7 @@
 
 [![Build Status](https://github.com/JuliaImageRecon/LinearOperatorCollection.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaImageRecon/LinearOperatorCollection.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-[![codecov.io](http://codecov.io/JuliaImageRecon/LinearOperatorCollection.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaImageRecon/LinearOperatorCollection.jl?branch=master)
+[![codecov](https://codecov.io/github/JuliaImageRecon/LinearOperatorCollection.jl/graph/badge.svg?token=MEjup4lqjO)](https://codecov.io/github/JuliaImageRecon/LinearOperatorCollection.jl)
 
 ## Purpose
 
