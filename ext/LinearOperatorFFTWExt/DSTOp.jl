@@ -1,6 +1,6 @@
-export DSTOp
+export DSTOpImpl
 
-mutable struct DSTOp{T} <: AbstractLinearOperator{T}
+mutable struct DSTOpImpl{T} <: DSTOp{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -20,7 +20,7 @@ mutable struct DSTOp{T} <: AbstractLinearOperator{T}
   iplan
 end
 
-LinearOperators.storage_type(op::DSTOp) = typeof(op.Mv5)
+LinearOperators.storage_type(op::DSTOpImpl) = typeof(op.Mv5)
 
 """
   DSTOp(T::Type, shape::Tuple)
@@ -31,7 +31,7 @@ returns a `LinearOperator` which performs a DST on a given input array.
 * `T::Type`       - type of the array to transform
 * `shape::Tuple`  - size of the array to transform
 """
-function DSTOp(T::Type, shape::Tuple)
+function LinearOperatorCollection.DSTOp(T::Type; shape::Tuple)
   tmp=Array{Complex{real(T)}}(undef, shape)
 
   plan = FFTW.plan_r2r!(tmp,FFTW.RODFT10)
@@ -39,7 +39,7 @@ function DSTOp(T::Type, shape::Tuple)
 
   w = weights(shape, T)
 
-  return DSTOp{T}(prod(shape), prod(shape), true, false
+  return DSTOpImpl{T}(prod(shape), prod(shape), true, false
             , (res,x) -> dst_multiply!(res,plan,x,tmp,w)
             , nothing
             , (res,x) -> dst_bmultiply!(res,iplan,x,tmp,w)
@@ -72,6 +72,6 @@ function dst_bmultiply!(res::Vector{T}, plan::P, x::Vector{T}, tmp::Array{T,D}, 
   res[:] .= vec(tmp)./(8*length(tmp))
 end
 
-function Base.copy(S::DSTOp)
-  return DSTOp(eltype(S), size(S.plan))
+function Base.copy(S::DSTOpImpl)
+  return DSTOpImpl(eltype(S), size(S.plan))
 end

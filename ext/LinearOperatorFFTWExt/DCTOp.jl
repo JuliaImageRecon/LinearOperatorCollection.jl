@@ -1,6 +1,6 @@
-export DCTOp
+export DCTOpImpl
 
-mutable struct DCTOp{T} <: AbstractLinearOperator{T}
+mutable struct DCTOpImpl{T} <: DCTOp{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -20,19 +20,19 @@ mutable struct DCTOp{T} <: AbstractLinearOperator{T}
   dcttype::Int
 end
 
-LinearOperators.storage_type(op::DCTOp) = typeof(op.Mv5)
+LinearOperators.storage_type(op::DCTOpImpl) = typeof(op.Mv5)
 
 """
-  DCTOp(T::Type, shape::Tuple, dcttype=2)
+  DCTOpImpl(T::Type, shape::Tuple, dcttype=2)
 
-returns a `DCTOp <: AbstractLinearOperator` which performs a DCT on a given input array.
+returns a `DCTOpImpl <: AbstractLinearOperator` which performs a DCT on a given input array.
 
 # Arguments:
 * `T::Type`       - type of the array to transform
 * `shape::Tuple`  - size of the array to transform
 * `dcttype`       - type of DCT (currently `2` and `4` are supported)
 """
-function DCTOp(T::Type, shape::Tuple, dcttype=2)
+function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, dcttype=2)
 
   tmp=Array{Complex{real(T)}}(undef, shape) 
   if dcttype == 2
@@ -50,7 +50,7 @@ function DCTOp(T::Type, shape::Tuple, dcttype=2)
     error("DCT type $(dcttype) not supported")
   end
 
-  return DCTOp{T}(prod(shape), prod(shape), false, false,
+  return DCTOpImpl{T}(prod(shape), prod(shape), false, false,
                       prod!, nothing, tprod!,
                       0, 0, 0, true, false, true, T[], T[],
                       plan, dcttype)
@@ -68,6 +68,6 @@ function dct_multiply4(res::Vector{T}, plan::P, x::Vector{T}, tmp::Array{T,D}, f
   res .= factor.*vec(tmp)
 end
 
-function Base.copy(S::DCTOp)
-  return DCTOp(eltype(S), size(S.plan), S.dcttype)
+function Base.copy(S::DCTOpImpl)
+  return DCTOpImpl(eltype(S), size(S.plan), S.dcttype)
 end

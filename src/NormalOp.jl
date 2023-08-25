@@ -1,6 +1,15 @@
-export NormalOp, normalOperator
+export normalOperator
 
-mutable struct NormalOp{T,S,D,V} <: AbstractLinearOperator{T}
+function LinearOperatorCollection.NormalOp(::Type{T};
+  parent, weights, tmp::Union{Nothing,Vector{T}}) where T <: Number
+  if tmp == nothing
+    return NormalOpImpl(parent, weights)
+  else
+    return NormalOpImpl(parent, weights, tmp)
+  end
+end
+
+mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -21,15 +30,15 @@ mutable struct NormalOp{T,S,D,V} <: AbstractLinearOperator{T}
   tmp::V
 end
 
-LinearOperators.storage_type(op::NormalOp) = typeof(op.Mv5)
+LinearOperators.storage_type(op::NormalOpImpl) = typeof(op.Mv5)
 
-function NormalOp(parent, weights)
+function NormalOpImpl(parent, weights)
   T = promote_type(eltype(parent), eltype(weights))
   tmp = Vector{T}(undef, size(parent, 1))
-  return NormalOp(parent, weights, tmp)
+  return NormalOpImpl(parent, weights, tmp)
 end
 
-function NormalOp(parent, weights, tmp::Vector{T}) where T
+function NormalOpImpl(parent, weights, tmp::Vector{T}) where T
 
   function produ!(y, parent, tmp, x)
     mul!(tmp, parent, x)
@@ -37,7 +46,7 @@ function NormalOp(parent, weights, tmp::Vector{T}) where T
     return mul!(y, adjoint(parent), tmp)
   end
 
-  return NormalOp(size(parent,2), size(parent,2), false, false
+  return NormalOpImpl(size(parent,2), size(parent,2), false, false
          , (res,x) -> produ!(res, parent, tmp, x)
          , nothing
          , nothing
@@ -45,11 +54,11 @@ function NormalOp(parent, weights, tmp::Vector{T}) where T
          , parent, weights, tmp)
 end
 
-function Base.copy(S::NormalOp)
-  return NormalOp(copy(S.parent), S.weights, copy(S.tmp))
+function Base.copy(S::NormalOpImpl)
+  return NormalOpImpl(copy(S.parent), S.weights, copy(S.tmp))
 end
 
 function normalOperator(parent, weights=opEye(eltype(parent), size(parent,1)))
-  return NormalOp(parent, weights)
+  return NormalOpImpl(parent, weights)
 end
 
