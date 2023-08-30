@@ -60,6 +60,30 @@ for op in linearOperatorList()
   end
 end
 
+# String constructor
+function createLinearOperator(op::String, ::Type{T}; kargs...) where T <: Number
+  if contains(op, "DCT") 
+    strToOp = Dict("DCT-I"=>(DCTOp{T},1), "DCT-II"=>(DCTOp{T},2), 
+                              "DCT-III"=>(DCTOp{T},3), "DCT-IV"=>(DCTOp{T},4))
+    trafo, dcttype = strToOp[op]  
+    return createLinearOperator(trafo; dcttype, kargs...)
+  elseif contains(op, "DST") 
+    return createLinearOperator(DSTOp{T}; kargs...)
+  elseif contains(op, "FFT") 
+    return createLinearOperator(FFTOp{T}; kargs...)
+  elseif contains(op, "NFFT") 
+    return createLinearOperator(NFFTOp{T}; kargs...)
+  elseif contains(op, "NFFT") 
+    return createLinearOperator(NFFTOp{T}; kargs...)
+  elseif contains(op, "Wavelet") 
+    return createLinearOperator(WaveletOp{T}; kargs...)
+  else
+    error("Linear operator $(op) currently not implemented")
+  end
+end
+
+
+
 include("GradientOp.jl")
 include("SamplingOp.jl")
 include("WeightingOp.jl")

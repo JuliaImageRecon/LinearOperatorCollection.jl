@@ -1,7 +1,7 @@
 name = "LinearOperatorCollection"
 uuid = "a4a2c56f-fead-462a-a3ab-85921a5f2575"
 authors = ["Tobias Knopp <tobias.knopp@tuhh.de> and contributors"]
-version = "1.0.0"
+version = "1.1.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
