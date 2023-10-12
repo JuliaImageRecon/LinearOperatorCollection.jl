@@ -11,6 +11,7 @@ a given input array.
 * (`wt=wavelet(WT.db2)`)  - Wavelet to apply
 """
 function LinearOperatorCollection.WaveletOp(::Type{T}; shape::Tuple, wt=wavelet(WT.db2)) where T <: Number
+  shape = filter(x-> x != 1, shape) # Drop dimension with 1
   return LinearOperator(T, prod(shape), prod(shape), false, false
             , (res,x)->dwt!(reshape(res,shape), reshape(x,shape), wt)
             , nothing
