@@ -1,4 +1,3 @@
-import Base.adjoint
 
 function LinearOperatorCollection.NFFTOp(::Type{T};
     shape::Tuple, nodes::AbstractMatrix{U}, toeplitz=false, oversamplingFactor=1.25, 

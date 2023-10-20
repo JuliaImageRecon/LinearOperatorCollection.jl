@@ -1,15 +1,13 @@
 module LinearOperatorCollection
 
-import Base: length, iterate, \
 using LinearAlgebra
-import LinearAlgebra.BLAS: gemv, gemv!
-import LinearAlgebra: BlasFloat, normalize!, norm, rmul!, lmul!
+using LinearAlgebra.BLAS: gemv, gemv!
+using LinearAlgebra: BlasFloat, normalize!, norm, rmul!, lmul!
 using SparseArrays
 using Random
 using InteractiveUtils
 
 using Reexport
-@reexport using Reexport
 @reexport using LinearOperators
 
 LinearOperators.use_prod5!(op::opEye) = false

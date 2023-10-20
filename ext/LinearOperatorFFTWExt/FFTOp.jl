@@ -1,5 +1,4 @@
 export FFTOpImpl
-import Base.copy
 
 mutable struct FFTOpImpl{T} <: FFTOp{T}
   nrow :: Int
@@ -92,5 +91,5 @@ end
 
 
 function Base.copy(S::FFTOpImpl)
-  return FFTOpImpl(eltype(S), size(S.plan), S.shift, unitary=S.unitary)
+  return FFTOp(eltype(S); shape=size(S.plan), shift=S.shift, unitary=S.unitary)
 end
