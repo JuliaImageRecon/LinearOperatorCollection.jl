@@ -30,9 +30,10 @@ function GradientOpImpl(T::Type, shape::NTuple{N,Int64}, dim::Integer) where N
   nrow = div( (shape[dim]-1)*prod(shape), shape[dim] )
   ncol = prod(shape)
   return LinearOperator{T}(nrow, ncol, false, false,
-                          (res,x) -> (grad!(res,x,shape,dim) ),
-                          (res,x) -> (grad_t!(res,x,shape,dim) ),
-                          nothing )
+                          (res,x) -> (grad!(res,x,shape,dim)),
+                          (res,x) -> (grad_t!(res,x,shape,dim)),
+                          (res,x) -> (grad_t!(res,x,shape,dim))
+                          )
 end
 
 # directional gradients
