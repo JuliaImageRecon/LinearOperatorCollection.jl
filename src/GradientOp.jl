@@ -1,38 +1,33 @@
-function LinearOperatorCollection.GradientOp(::Type{T};
-  shape::Tuple, dims=nothing) where T <: Number
-  if dims == nothing
-    return GradientOpImpl(T, shape)
-  else
-    return GradientOpImpl(T, shape, dims)
-  end
+"""
+  GradientOp(T::Type; shape::Tuple, dims=1:length(shape))
+
+directional gradient operator along the dimensions `dims` for an array of size `shape`.
+
+# Required Argument
+  * `T`                        - type of elements, .e.g. `Float64` for `ComplexF32`
+
+# Required Keyword argument
+  * `shape::NTuple{N,Int}`     - shape of the array (e.g., image)
+
+# Optional Keyword argument
+  * `dims`                     - dimension(s) along which the gradient is applied; default is `1:length(shape)`
+"""
+function GradientOp(::Type{T}; shape::NTuple{N,Int}, dims=1:length(shape)) where {T <: Number, N}
+  return GradientOpImpl(T, shape, dims)
 end
 
-"""
-    GradOp(T::Type, shape::NTuple{N,Int64})
-
-Nd gradient operator for an array of size `shape`
-"""
-function GradientOpImpl(T::Type, shape)
-  shape = typeof(shape) <: Number ? (shape,) : shape # convert Number to Tuple
-  return vcat([GradientOpImpl(T, shape, i) for i ∈ eachindex(shape)]...)
-end
-
-"""
-    GradOp(T::Type, shape::NTuple{N,Int64}, dims)
-
-directional gradient operator along the dimensions `dims`
-for an array of size `shape`
-"""
-function GradientOpImpl(T::Type, shape::NTuple{N,Int64}, dims) where N
+function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dims) where N
   return vcat([GradientOpImpl(T, shape, dim) for dim ∈ dims]...)
 end
-function GradientOpImpl(T::Type, shape::NTuple{N,Int64}, dim::Integer) where N
+
+function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dim::Int) where N
   nrow = div( (shape[dim]-1)*prod(shape), shape[dim] )
   ncol = prod(shape)
   return LinearOperator{T}(nrow, ncol, false, false,
-                          (res,x) -> (grad!(res,x,shape,dim) ),
-                          (res,x) -> (grad_t!(res,x,shape,dim) ),
-                          nothing )
+                          (res,x) -> (grad!(res,x,shape,dim)),
+                          (res,x) -> (grad_t!(res,x,shape,dim)),
+                          (res,x) -> (grad_t!(res,x,shape,dim))
+                          )
 end
 
 # directional gradients
