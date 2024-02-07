@@ -7,6 +7,9 @@ using SparseArrays
 using Random
 using InteractiveUtils
 
+import Base: *, copy, getproperty, setproperty!
+import LinearOperators: storage_type
+
 using Reexport
 @reexport using LinearOperators
 
@@ -37,7 +40,6 @@ abstract type DSTOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type NFFTOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type SamplingOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type NormalOp{T} <: AbstractLinearOperatorFromCollection{T} end
-abstract type WeightingOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type GradientOp{T} <: AbstractLinearOperatorFromCollection{T} end
 
 
@@ -79,7 +81,6 @@ function createLinearOperator(op::String, ::Type{T}; kargs...) where T <: Number
     error("Linear operator $(op) currently not implemented")
   end
 end
-
 
 
 include("GradientOp.jl")
