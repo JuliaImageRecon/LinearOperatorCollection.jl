@@ -83,6 +83,7 @@ function createLinearOperator(op::String, ::Type{T}; kargs...) where T <: Number
 end
 
 
+include("ProdOp.jl")
 include("GradientOp.jl")
 include("SamplingOp.jl")
 include("WeightingOp.jl")
