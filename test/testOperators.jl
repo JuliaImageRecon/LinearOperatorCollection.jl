@@ -86,14 +86,14 @@ function testWeighting(N=512)
   Random.seed!(1234)
   x1 = rand(N)
   weights = rand(N)
-  W = WeightingOp(Float64; weights)
+  W = WeightingOp(weights)
   y1 = W*x1
   y = weights .* x1
 
   @test norm(y1 - y) / norm(y) ≈ 0 atol=0.01
 
   x2 = rand(2*N)
-  W2 = WeightingOp(Float64; weights, rep=2)
+  W2 = WeightingOp(weights, 2)
   y2 = W2*x2
   y = repeat(weights,2) .* x2
 
