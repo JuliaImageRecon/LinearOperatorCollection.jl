@@ -15,6 +15,7 @@ mutable struct WeightingOp{T} <: AbstractLinearOperatorFromCollection{T}
     return new{T}(opDiagonal(weights_cat), weights_cat)
   end
 end
+WeightingOp(::Type{T}; weights::vecT, rep::Int=1) where {T <: Number, vecT<:AbstractVector{T}} = WeightingOp(weights, rep)
 
 function Base.getproperty(wop::WeightingOp, field::Symbol)
   if in(field, (:op, :weights)) 
