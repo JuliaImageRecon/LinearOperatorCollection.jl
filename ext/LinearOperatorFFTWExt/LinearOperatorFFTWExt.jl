@@ -1,6 +1,6 @@
 module LinearOperatorFFTWExt
 
-using LinearOperatorCollection, FFTW
+using LinearOperatorCollection, FFTW, FFTW.AbstractFFTs
 
 include("FFTOp.jl")
 include("DCTOp.jl")
