@@ -12,22 +12,22 @@ directional gradient operator along the dimensions `dims` for an array of size `
 # Optional Keyword argument
   * `dims`                     - dimension(s) along which the gradient is applied; default is `1:length(shape)`
 """
-function GradientOp(::Type{T}; shape::NTuple{N,Int}, dims=1:length(shape)) where {T <: Number, N}
-  return GradientOpImpl(T, shape, dims)
+function GradientOp(::Type{T}; shape::NTuple{N,Int}, dims=1:length(shape), kwargs...) where {T <: Number, N}
+  return GradientOpImpl(T, shape, dims; kwargs...)
 end
 
-function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dims) where N
-  return vcat([GradientOpImpl(T, shape, dim) for dim ∈ dims]...)
+function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dims; kwargs...) where N
+  return vcat([GradientOpImpl(T, shape, dim; kwargs...) for dim ∈ dims]...)
 end
 
-function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dim::Int) where N
+function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dim::Int; S = Vector{T}) where N
   nrow = div( (shape[dim]-1)*prod(shape), shape[dim] )
   ncol = prod(shape)
   return LinearOperator{T}(nrow, ncol, false, false,
                           (res,x) -> (grad!(res,x,shape,dim)),
                           (res,x) -> (grad_t!(res,x,shape,dim)),
-                          (res,x) -> (grad_t!(res,x,shape,dim))
-                          )
+                          (res,x) -> (grad_t!(res,x,shape,dim)),
+                          S = S)
 end
 
 # directional gradients
