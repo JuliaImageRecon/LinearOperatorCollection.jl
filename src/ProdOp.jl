@@ -7,7 +7,7 @@ export ProdOp
   that the latter can be made copyable. This is particularly relevant for
   multi-threaded code
 """
-mutable struct ProdOp{T,U,V} <: AbstractLinearOperatorFromCollection{T}
+mutable struct ProdOp{T,U,V, vecT <: AbstractVector{T}} <: AbstractLinearOperatorFromCollection{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -21,11 +21,11 @@ mutable struct ProdOp{T,U,V} <: AbstractLinearOperatorFromCollection{T}
   args5 :: Bool
   use_prod5! :: Bool
   allocated5 :: Bool
-  Mv5 :: Vector{T}
-  Mtu5 :: Vector{T}
+  Mv5 :: vecT
+  Mtu5 :: vecT
   A::U
   B::V
-  tmp::Vector{T}
+  tmp::vecT
 end
 
 """
@@ -33,11 +33,11 @@ end
 
 composition/product of two Operators. Differs with * since it can handle normal operator
 """
-function ProdOp(A,B)
+function ProdOp(A::AbstractLinearOperator, B::AbstractLinearOperator)
   nrow = size(A, 1)
   ncol = size(B, 2)
-  S = promote_type(eltype(A), eltype(B))
-  tmp_ = Vector{S}(undef, size(B, 1))
+  S = promote_type(storage_type(A), storage_type(B))
+  tmp_ = S(undef, size(B, 1))
 
   function produ!(res, x::AbstractVector{T}, tmp) where T<:Union{Real,Complex}
     mul!(tmp, B, x)
@@ -58,11 +58,13 @@ function ProdOp(A,B)
                      (res,x) -> produ!(res,x,tmp_),
                      (res,y) -> tprodu!(res,y,tmp_),
                      (res,y) -> ctprodu!(res,y,tmp_), 
-                     0, 0, 0, false, false, false, S[], S[],
+                     0, 0, 0, false, false, false, similar(tmp_, 0), similar(tmp_, 0),
                      A, B, tmp_)
 
   return Op
 end
+ProdOp(A::AbstractMatrix, B::AbstractLinearOperator) = ProdOp(LinearOperator(A), B)
+ProdOp(A::AbstractLinearOperator, B::AbstractMatrix) = ProdOp(A, LinearOperator(B))
 
 function Base.copy(S::ProdOp{T}) where T
   A = copy(S.A)
