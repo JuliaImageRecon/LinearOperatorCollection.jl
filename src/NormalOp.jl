@@ -1,13 +1,20 @@
 export normalOperator
 
-function LinearOperatorCollection.NormalOp(::Type{T};
-  parent, weights, tmp::Union{Nothing,Vector{T}}) where T <: Number
-  if tmp == nothing
-    return NormalOpImpl(parent, weights)
-  else
-    return NormalOpImpl(parent, weights, tmp)
-  end
+function LinearOperatorCollection.NormalOp(::Type{T}; parent, weights = nothing) where T <: Number
+  return NormalOp(T, parent, weights)
 end
+
+NormalOp(::Type{T}, parent::AbstractMatrix{T}, weights) where T  = NormalOp(T, LinearOperator(parent), weights)
+
+# TODO Are weights always restricted to T or can they also be real(T)?
+function NormalOp(::Type{T}, parent::AbstractLinearOperator{T}, ::Nothing) where T
+  weights = similar(storage_type(parent), size(parent, 1))
+  weights .= one(eltype(parent))
+  return NormalOp(T, parent, weights)
+end
+NormalOp(::Type{T}, parent::AbstractLinearOperator{T}, weights::AbstractVector{T}) where T = NormalOp(T, parent, WeightingOp(weights))
+
+NormalOp(::Type{T}, parent::AbstractLinearOperator{T}, weights::AbstractLinearOperator{T}; kwargs...) where T = NormalOpImpl(parent, weights)
 
 mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T}
   nrow :: Int
@@ -23,8 +30,8 @@ mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T}
   args5 :: Bool
   use_prod5! :: Bool
   allocated5 :: Bool
-  Mv5 :: Vector{T}
-  Mtu5 :: Vector{T}
+  Mv5 :: V
+  Mtu5 :: V
   parent::S
   weights::D
   tmp::V
@@ -32,25 +39,21 @@ end
 
 LinearOperators.storage_type(op::NormalOpImpl) = typeof(op.Mv5)
 
-function NormalOpImpl(parent, weights)
-  T = promote_type(eltype(parent), eltype(weights))
-  tmp = Vector{T}(undef, size(parent, 1))
-  return NormalOpImpl(parent, weights, tmp)
-end
+function NormalOpImpl(parent::AbstractLinearOperator{T}, weights::AbstractLinearOperator{T}) where T 
+  S = promote_type(storage_type(parent), storage_type(weights))
+  tmp = S(undef, size(parent, 1))
 
-function NormalOpImpl(parent, weights, tmp::Vector{T}) where T
-
-  function produ!(y, parent, tmp, x)
+  function produ!(y, parent, weights, tmp, x)
     mul!(tmp, parent, x)
     mul!(tmp, weights, tmp) # This can be dangerous. We might need to create two tmp vectors
     return mul!(y, adjoint(parent), tmp)
   end
 
-  return NormalOpImpl(size(parent,2), size(parent,2), false, false
-         , (res,x) -> produ!(res, parent, tmp, x)
+  return NormalOpImpl{T, typeof(parent), typeof(weights), typeof(tmp)}(size(parent,2), size(parent,2), false, false
+         , (res,x) -> produ!(res, parent, weights, tmp, x)
          , nothing
          , nothing
-         , 0, 0, 0, false, false, false, T[], T[]
+         , 0, 0, 0, true, false, true, similar(tmp, 0), similar(tmp, 0)
          , parent, weights, tmp)
 end
 
@@ -58,7 +61,6 @@ function Base.copy(S::NormalOpImpl)
   return NormalOpImpl(copy(S.parent), S.weights, copy(S.tmp))
 end
 
-function normalOperator(parent, weights=opEye(eltype(parent), size(parent,1)))
-  return NormalOpImpl(parent, weights)
+function normalOperator(parent, weights=nothing)
+  return NormalOp(eltype(parent); parent = parent, weights = weights)
 end
-
