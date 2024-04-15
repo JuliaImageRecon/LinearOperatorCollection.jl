@@ -33,7 +33,7 @@ end
 
 composition/product of two Operators. Differs with * since it can handle normal operator
 """
-function ProdOp(A::AbstractLinearOperator, B::AbstractLinearOperator)
+function ProdOp(A, B)
   nrow = size(A, 1)
   ncol = size(B, 2)
   S = promote_type(storage_type(A), storage_type(B))
@@ -63,8 +63,6 @@ function ProdOp(A::AbstractLinearOperator, B::AbstractLinearOperator)
 
   return Op
 end
-ProdOp(A::AbstractMatrix, B::AbstractLinearOperator) = ProdOp(LinearOperator(A), B)
-ProdOp(A::AbstractLinearOperator, B::AbstractMatrix) = ProdOp(A, LinearOperator(B))
 
 function Base.copy(S::ProdOp{T}) where T
   A = copy(S.A)

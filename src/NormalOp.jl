@@ -4,17 +4,15 @@ function LinearOperatorCollection.NormalOp(::Type{T}; parent, weights = nothing)
   return NormalOp(T, parent, weights)
 end
 
-NormalOp(::Type{T}, parent::AbstractMatrix{T}, weights) where T  = NormalOp(T, LinearOperator(parent), weights)
-
 # TODO Are weights always restricted to T or can they also be real(T)?
-function NormalOp(::Type{T}, parent::AbstractLinearOperator{T}, ::Nothing) where T
+function NormalOp(::Type{T}, parent, ::Nothing) where T
   weights = similar(storage_type(parent), size(parent, 1))
   weights .= one(eltype(parent))
   return NormalOp(T, parent, weights)
 end
-NormalOp(::Type{T}, parent::AbstractLinearOperator{T}, weights::AbstractVector{T}) where T = NormalOp(T, parent, WeightingOp(weights))
+NormalOp(::Type{T}, parent, weights::AbstractVector{T}) where T = NormalOp(T, parent, WeightingOp(weights))
 
-NormalOp(::Type{T}, parent::AbstractLinearOperator{T}, weights::AbstractLinearOperator{T}; kwargs...) where T = NormalOpImpl(parent, weights)
+NormalOp(::Type{T}, parent, weights::AbstractLinearOperator{T}; kwargs...) where T = NormalOpImpl(parent, weights)
 
 mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T}
   nrow :: Int
@@ -39,7 +37,7 @@ end
 
 LinearOperators.storage_type(op::NormalOpImpl) = typeof(op.Mv5)
 
-function NormalOpImpl(parent::AbstractLinearOperator{T}, weights::AbstractLinearOperator{T}) where T 
+function NormalOpImpl(parent, weights)
   S = promote_type(storage_type(parent), storage_type(weights))
   tmp = S(undef, size(parent, 1))
 
@@ -49,7 +47,7 @@ function NormalOpImpl(parent::AbstractLinearOperator{T}, weights::AbstractLinear
     return mul!(y, adjoint(parent), tmp)
   end
 
-  return NormalOpImpl{T, typeof(parent), typeof(weights), typeof(tmp)}(size(parent,2), size(parent,2), false, false
+  return NormalOpImpl{eltype(parent), typeof(parent), typeof(weights), typeof(tmp)}(size(parent,2), size(parent,2), false, false
          , (res,x) -> produ!(res, parent, weights, tmp, x)
          , nothing
          , nothing
