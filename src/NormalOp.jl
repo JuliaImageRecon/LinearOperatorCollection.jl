@@ -1,6 +1,6 @@
 export normalOperator
 
-function LinearOperatorCollection.NormalOp(::Type{T}; parent, weights = nothing) where T <: Number
+function LinearOperatorCollection.NormalOp(::Type{T}; parent, weights = opEye(eltype(parent), size(parent, 1), S = storage_type(parent))) where T <: Number
   return NormalOp(T, parent, weights)
 end
 
@@ -59,6 +59,6 @@ function Base.copy(S::NormalOpImpl)
   return NormalOpImpl(copy(S.parent), S.weights, copy(S.tmp))
 end
 
-function normalOperator(parent, weights=nothing)
+function normalOperator(parent, weights=opEye(eltype(parent), size(parent, 1), S= storage_type(parent)))
   return NormalOp(eltype(parent); parent = parent, weights = weights)
 end
