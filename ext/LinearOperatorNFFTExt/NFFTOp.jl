@@ -5,7 +5,7 @@ function LinearOperatorCollection.NFFTOp(::Type{T};
   return NFFTOpImpl(shape, nodes; toeplitz, oversamplingFactor, kernelSize, kargs... )
 end
 
-mutable struct NFFTOpImpl{T} <: NFFTOp{T}
+mutable struct NFFTOpImpl{T, vecT, P <: AbstractNFFTPlan} <: NFFTOp{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -19,9 +19,9 @@ mutable struct NFFTOpImpl{T} <: NFFTOp{T}
   args5 :: Bool
   use_prod5! :: Bool
   allocated5 :: Bool
-  Mv5 :: Vector{T}
-  Mtu5 :: Vector{T}
-  plan
+  Mv5 :: vecT
+  Mtu5 :: vecT
+  plan :: P
   toeplitz :: Bool
 end
 
@@ -39,24 +39,24 @@ generates a `NFFTOpImpl` which evaluates the MRI Fourier signal encoding operato
 * (`nodes=nothing`)         - Array containg the trajectory nodes (redundant)
 * (`kargs`)                 - additional keyword arguments
 """
-function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz=false, oversamplingFactor=1.25, kernelSize=3, kargs...) where {T}
+function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz=false, oversamplingFactor=1.25, kernelSize=3, S = Vector{Complex{T}}, kargs...) where {T}
 
-  plan = plan_nfft(tr, shape, m=kernelSize, σ=oversamplingFactor, precompute=NFFT.TENSOR,
+  plan = plan_nfft(S, tr, shape, m=kernelSize, σ=oversamplingFactor, precompute=NFFT.TENSOR,
 		                          fftflags=FFTW.ESTIMATE, blocking=true)
 
-  return NFFTOpImpl{Complex{T}}(size(tr,2), prod(shape), false, false
+  return NFFTOpImpl{eltype(S), S, typeof(plan)}(size(tr,2), prod(shape), false, false
             , (res,x) -> produ!(res,plan,x)
             , nothing
             , (res,y) -> ctprodu!(res,plan,y)
-            , 0, 0, 0, false, false, false, Complex{T}[], Complex{T}[]
+            , 0, 0, 0, false, false, false, S(), S()
             , plan, toeplitz)
 end
 
-function produ!(y::AbstractVector, plan::NFFT.NFFTPlan, x::AbstractVector) 
+function produ!(y::AbstractVector, plan::AbstractNFFTPlan, x::AbstractVector) 
   mul!(y, plan, reshape(x,plan.N))
 end
 
-function ctprodu!(x::AbstractVector, plan::NFFT.NFFTPlan, y::AbstractVector)
+function ctprodu!(x::AbstractVector, plan::AbstractNFFTPlan, y::AbstractVector)
   mul!(reshape(x, plan.N), adjoint(plan), y)
 end
 
