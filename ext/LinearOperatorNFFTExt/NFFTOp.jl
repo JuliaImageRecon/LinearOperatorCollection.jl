@@ -134,8 +134,8 @@ function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=opEye(eltype(nfft), size(nfft, 
   tmpVec .= zero(T)
 
   # plan the FFTs
-  fftplan  = plan_fft(tmpVec)
-  ifftplan = plan_ifft(tmpVec)
+  fftplan  = plan_fft(tmpVec; kwargs...)
+  ifftplan = plan_ifft(tmpVec; kwargs...)
 
   # TODO extend the following function by weights
   # λ = calculateToeplitzKernel(shape, nfft.plan.k; m = nfft.plan.params.m, σ = nfft.plan.params.σ, window = nfft.plan.params.window, LUTSize = nfft.plan.params.LUTSize, fftplan = fftplan)
@@ -154,9 +154,9 @@ function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=opEye(eltype(nfft), size(nfft, 
   return NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1, xL2)
 end
 
-function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W = opEye(eltype(S), size(S, 1), S= LinearOperators.storage_type(S))) where T
+function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W = opEye(eltype(S), size(S, 1), S= LinearOperators.storage_type(S)), kwargs...) where T
   if S.toeplitz
-    return NFFTToeplitzNormalOp(S,W)
+    return NFFTToeplitzNormalOp(S,W, kwargs...)
   else
     return NormalOp(eltype(S); parent = S, weights = W)
   end

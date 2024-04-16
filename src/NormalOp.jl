@@ -59,6 +59,6 @@ function Base.copy(S::NormalOpImpl)
   return NormalOpImpl(copy(S.parent), S.weights, copy(S.tmp))
 end
 
-function normalOperator(parent, weights=opEye(eltype(parent), size(parent, 1), S= storage_type(parent)))
+function normalOperator(parent, weights=opEye(eltype(parent), size(parent, 1), S= storage_type(parent)), kwargs...)
   return NormalOp(eltype(parent); parent = parent, weights = weights)
 end
