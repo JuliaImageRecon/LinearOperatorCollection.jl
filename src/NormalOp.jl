@@ -40,7 +40,10 @@ LinearOperators.storage_type(op::NormalOpImpl) = typeof(op.Mv5)
 function NormalOpImpl(parent, weights)
   S = promote_type(storage_type(parent), storage_type(weights))
   tmp = S(undef, size(parent, 1))
+  return NormalOpImpl(parent, weights, tmp)
+end
 
+function NormalOpImpl(parent, weights, tmp)
   function produ!(y, parent, weights, tmp, x)
     mul!(tmp, parent, x)
     mul!(tmp, weights, tmp) # This can be dangerous. We might need to create two tmp vectors
