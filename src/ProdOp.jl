@@ -120,7 +120,7 @@ end
 # In this case we are converting the left argument into a 
 # weighting matrix, that is passed to normalOperator
 # TODO Port vom MRIOperators drops given weighting matrix, I just left it out for now
-normalOperator(S::ProdOp{T, <:WeightingOp, matT}) where matT = normalOperator(S.B, S.A)
+normalOperator(S::ProdOp{T, <:WeightingOp, matT}) where {T, matT} = normalOperator(S.B, S.A)
 function normalOperator(S::ProdOp, W=opEye(eltype(S),size(S,1), S = storage_type(S)))
   arrayType = storage_type(S)
   tmp = arrayType(undef, size(S.A, 2))
