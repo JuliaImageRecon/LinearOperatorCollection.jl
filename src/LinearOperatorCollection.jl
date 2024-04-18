@@ -7,7 +7,7 @@ using SparseArrays
 using Random
 using InteractiveUtils
 
-import Base: *, copy, getproperty, setproperty!
+import Base: *, ∘, copy, getproperty, setproperty!
 import LinearOperators: storage_type
 
 using Reexport
