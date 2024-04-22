@@ -88,5 +88,6 @@ include("ProdOp.jl")
 include("GradientOp.jl")
 include("SamplingOp.jl")
 include("NormalOp.jl")
+include("DiagOp.jl")
 
 end
