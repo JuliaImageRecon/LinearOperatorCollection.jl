@@ -61,13 +61,13 @@ function ctprodu!(x::AbstractVector, plan::AbstractNFFTPlan, y::AbstractVector)
 end
 
 
-function Base.copy(S::NFFTOpImpl{T}) where {T}
+function Base.copy(S::NFFTOpImpl{T, vecT, P}) where {T, vecT, P}
   plan = copy(S.plan)
-  return NFFTOpImpl{T}(size(plan.k,2), prod(plan.N), false, false
+  return NFFTOpImpl{T, vecT, P}(size(plan.k,2), prod(plan.N), false, false
               , (res,x) -> produ!(res,plan,x)
               , nothing
               , (res,y) -> ctprodu!(res,plan,y)
-              , 0, 0, 0, false, false, false, T[], T[]
+              , 0, 0, 0, false, false, false, vecT(undef, 0), vecT(undef, 0)
               , plan, S.toeplitz)
 end
 
