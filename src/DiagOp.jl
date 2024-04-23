@@ -49,7 +49,7 @@ function DiagOp(ops)
   xIdx = cumsum(vcat(1,[ops[i].ncol for i=1:length(ops)]))
   yIdx = cumsum(vcat(1,[ops[i].nrow for i=1:length(ops)]))
 
-  Op = DiagOp( nrow, ncol, false, false,
+  Op = DiagOp{eltype(first(ops)), S, typeof(ops)}( nrow, ncol, false, false,
                      (res,x) -> (diagOpProd(res,x,nrow,xIdx,yIdx,ops...)),
                      (res,y) -> (diagOpTProd(res,y,ncol,yIdx,xIdx,ops...)),
                      (res,y) -> (diagOpCTProd(res,y,ncol,yIdx,xIdx,ops...)),
@@ -62,13 +62,13 @@ end
 function DiagOp(op::AbstractLinearOperator, N=1)
   nrow = N*op.nrow
   ncol = N*op.ncol
-  S = LinearOperators.storage_type(first(ops))
   ops = [copy(op) for n=1:N]
+  S = LinearOperators.storage_type(first(ops))
 
   xIdx = cumsum(vcat(1,[ops[i].ncol for i=1:length(ops)]))
   yIdx = cumsum(vcat(1,[ops[i].nrow for i=1:length(ops)]))
 
-  Op = DiagOp{S}( nrow, ncol, false, false,
+  Op = DiagOp{eltype(op), S, typeof(ops)}( nrow, ncol, false, false,
                     (res,x) -> (diagOpProd(res,x,nrow,xIdx,yIdx,ops...)),
                     (res,y) -> (diagOpTProd(res,y,ncol,yIdx,xIdx,ops...)),
                     (res,y) -> (diagOpCTProd(res,y,ncol,yIdx,xIdx,ops...)),
@@ -119,7 +119,7 @@ mutable struct DiagNormalOp{T,vecT,V} <: AbstractLinearOperator{T}
   Mtu5 :: vecT
   normalOps::V
   idx::Vector{Int64}
-  y::Vector{T}
+  y::vecT
 end
 
 LinearOperators.storage_type(op::DiagNormalOp) = typeof(op.Mv5)
@@ -131,15 +131,15 @@ function DiagNormalOp(normalOps, N, idx, y::AbstractVector{T}) where {T}
     S = promote_type(S, LinearOperators.storage_type(nop))
   end
 
-  return DiagNormalOp(N, N, false, false
-         , (res,x) -> produ!(res, normalOps, idx, x)
+  return DiagNormalOp{eltype(first(normalOps)), S, typeof(normalOps)}(N, N, false, false
+         , (res,x) -> diagNormOpProd!(res, normalOps, idx, x)
          , nothing
          , nothing
          , 0, 0, 0, false, false, false, S(undef, 0), S(undef, 0)
          , normalOps, idx, y)
 end
 
-function diagNormOpProd(y, normalOps, idx, x)
+function diagNormOpProd!(y, normalOps, idx, x)
   for i=1:length(normalOps)
     mul!(view(y,idx[i]:idx[i+1]-1), normalOps[i], view(x,idx[i]:idx[i+1]-1))
  end
