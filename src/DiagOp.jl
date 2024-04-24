@@ -160,10 +160,10 @@ function LinearOperatorCollection.normalOperator(diag::DiagOp, W=opEye(eltype(di
     # we promote the weights to be of the same type as T, which will be required
     # when creating the temporary vector in normalOperator in a later stage
     opInner = normalOperator(diag.ops[1], WeightingOp(T; weights=T.(weights[diag.yIdx[1]:diag.yIdx[2]-1].^2)); copyOpsFn = copyOpsFn, kwargs...)
-    op = DiagNormalOp([copyOpsFn(opInner) for i=1:length(diag.ops)], size(diag,2), diag.xIdx, S(zeros(T, diag.ncol)) )
+    op = DiagNormalOp([copyOpsFn(opInner) for i=1:length(diag.ops)], size(diag,2), diag.xIdx, S(undef, diag.ncol) )
   else
     op = DiagNormalOp([normalOperator(diag.ops[i], WeightingOp(T; weights=T.(weights[diag.yIdx[i]:diag.yIdx[i+1]-1].^2)); copyOpsFn = copyOpsFn, kwargs...)
-                     for i in 1:length(diag.ops)], size(diag,2), diag.xIdx, S(zeros(T, diag.ncol)) )
+                     for i in 1:length(diag.ops)], size(diag,2), diag.xIdx, S(undef, diag.ncol) )
   end
 
   return op
