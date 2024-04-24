@@ -59,10 +59,10 @@ function DiagOp(ops)
   return Op
 end
 
-function DiagOp(op::AbstractLinearOperator, N=1)
+function DiagOp(op::AbstractLinearOperator, N=1; copyOpsFn = copy)
   nrow = N*op.nrow
   ncol = N*op.ncol
-  ops = [copy(op) for n=1:N]
+  ops = [copyOpsFn(op) for n=1:N]
   S = LinearOperators.storage_type(first(ops))
 
   xIdx = cumsum(vcat(1,[ops[i].ncol for i=1:length(ops)]))
@@ -146,10 +146,12 @@ function diagNormOpProd!(y, normalOps, idx, x)
  return y
 end
 
-function LinearOperatorCollection.normalOperator(diag::DiagOp, W=opEye(eltype(diag), size(diag,1), S = LinearOperators.storage_type(diag)))
+function LinearOperatorCollection.normalOperator(diag::DiagOp, W=opEye(eltype(diag), size(diag,1), S = LinearOperators.storage_type(diag)); copyOpsFn = copy, kwargs...)
   T = promote_type(eltype(diag), eltype(W))
   S = promote_type(LinearOperators.storage_type(diag), LinearOperators.storage_type(W))
-  weights = W*S(ones(diag.nrow))
+  tmp = S(undef, diag.nrow)
+  tmp .= one(eltype(diag))
+  weights = W*tmp
 
 
   if diag.equalOps
@@ -157,10 +159,10 @@ function LinearOperatorCollection.normalOperator(diag::DiagOp, W=opEye(eltype(di
 
     # we promote the weights to be of the same type as T, which will be required
     # when creating the temporary vector in normalOperator in a later stage
-    opInner = normalOperator(diag.ops[1], WeightingOp(T; weights=T.(weights[diag.yIdx[1]:diag.yIdx[2]-1].^2)))
-    op = DiagNormalOp([copy(opInner) for i=1:length(diag.ops)], size(diag,2), diag.xIdx, S(zeros(T, diag.ncol)) )
+    opInner = normalOperator(diag.ops[1], WeightingOp(T; weights=T.(weights[diag.yIdx[1]:diag.yIdx[2]-1].^2)), copyOpsFn = copyOpsFn)
+    op = DiagNormalOp([copyOpsFn(opInner) for i=1:length(diag.ops)], size(diag,2), diag.xIdx, S(zeros(T, diag.ncol)) )
   else
-    op = DiagNormalOp([normalOperator(diag.ops[i], WeightingOp(T; weights=T.(weights[diag.yIdx[i]:diag.yIdx[i+1]-1].^2)))
+    op = DiagNormalOp([normalOperator(diag.ops[i], WeightingOp(T; weights=T.(weights[diag.yIdx[i]:diag.yIdx[i+1]-1].^2)), copyOpsFn = copyOpsFn)
                      for i in 1:length(diag.ops)], size(diag,2), diag.xIdx, S(zeros(T, diag.ncol)) )
   end
 
