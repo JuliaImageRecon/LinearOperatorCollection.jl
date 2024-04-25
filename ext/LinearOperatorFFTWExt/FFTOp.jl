@@ -39,7 +39,7 @@ returns an operator which performs an FFT on Arrays of type T
 """
 function LinearOperatorCollection.FFTOp(T::Type; shape::NTuple{D,Int64}, shift::Bool=true, unitary::Bool=true, S = Array{Complex{real(T)}}, kwargs...) where D
   
-  tmpVec = S(undef, shape...)
+  tmpVec = similar(S(undef, 0), shape...)
   plan = plan_fft!(tmpVec; kwargs...)
   iplan = plan_bfft!(tmpVec; kwargs...)
 
