@@ -22,14 +22,14 @@ end
 
 prodwt!(res::Vector{T}, x::Vector{T}, wt, tmp::Array{T, D}, tmpRes::Array{T, D}) where {T, D} = dwt!(reshape(res,size(tmpRes)), reshape(x,size(tmpRes)), wt)
 function prodwt!(res::vecT, x::vecT, wt, tmp::Array{T, D}, tmpRes::Array{T, D}) where {T, D, vecT <: AbstractArray{T}}
-  tmp[:] = x
+  copyto!(tmp, x)
   dwt!(tmpRes, tmp, wt)
-  res[:] = tmpRes
+  copyto!(res, tmpRes)
 end
 
 ctprodwt!(res::Vector{T}, x::Vector{T}, wt, tmp::Array{T, D}, tmpRes::Array{T, D}) where {T, D} = idwt!(reshape(res,size(tmpRes)), reshape(x,size(tmpRes)), wt)
 function ctprodwt!(res::vecT, x::vecT, wt, tmp::Array{T, D}, tmpRes::Array{T, D}) where {T, D, vecT <: AbstractArray{T}}
-  tmp[:] = x
-  idwt!(tmpsRes, tmp, wt)
-  res[:] = tmpRes
+  copyto!(tmp, x)
+  idwt!(tmpRes, tmp, wt)
+  copyto!(res, tmpRes)
 end
