@@ -30,7 +30,7 @@ end
 
 export linearOperatorList, createLinearOperator
 export AbstractLinearOperatorFromCollection, WaveletOp, FFTOp, DCTOp, DSTOp, NFFTOp,
-       SamplingOp, NormalOp, WeightingOp, GradientOp
+       SamplingOp, NormalOp, WeightingOp, GradientOp, RadonOp
 
 abstract type AbstractLinearOperatorFromCollection{T} <: AbstractLinearOperator{T} end
 abstract type WaveletOp{T} <: AbstractLinearOperatorFromCollection{T} end
@@ -41,6 +41,7 @@ abstract type NFFTOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type SamplingOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type NormalOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type GradientOp{T} <: AbstractLinearOperatorFromCollection{T} end
+abstract type RadonOp{T} <: AbstractLinearOperatorFromCollection{T} end
 
 
 """
