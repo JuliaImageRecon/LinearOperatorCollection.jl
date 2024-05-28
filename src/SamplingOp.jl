@@ -30,7 +30,7 @@ indicated by pattern.
 """
 function SamplingOpImpl(T::Type{<:Number}, pattern::AbstractArray{Int}, shape::Tuple; S = Vector{T})
   ndims(pattern)>1 ?  idx = vectorizePattern(pattern, shape) : idx = pattern
-  return opRestriction(idx, prod(shape); S = S)
+  return opEye(T,length(idx), S = S)*opRestriction(idx, prod(shape); S = S)
 end
 
 function SamplingOpImpl(T::Type{<:Number}, pattern::AbstractArray{Bool}; S = Vector{T})
