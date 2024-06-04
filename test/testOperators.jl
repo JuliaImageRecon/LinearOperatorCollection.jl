@@ -316,7 +316,7 @@ end
 function testDiagOp(N=32,K=2;arrayType = Array)
   x = arrayType(rand(ComplexF64, K*N))
   block = arrayType(rand(ComplexF64, N, N))
-  
+
   F = arrayType(zeros(ComplexF64, K*N, K*N))
   for k = 1:K
     start = (k-1)*N + 1
@@ -377,36 +377,54 @@ function testDiagOp(N=32,K=2;arrayType = Array)
   true
 end
 
-# TODO RadonOp
+function testRadonOp(N=32;arrayType = Array)
+  x = arrayType(rand(N, N))
+  xop = vec(x)
+  geom = RadonParallelCircle(N, -(N-1)÷2:(N-1)÷2)
+  angles = collect(range(0, pi, 100))
+
+  op = RadonOp(eltype(x); shape = (N, N), angles, geometry = geom, S = typeof(xop))
+
+  y = Array(radon(x, angles; geometry = geom))
+  y1 = reshape(Array(op * xop), size(y)...)
+  @test y ≈ y1 rtol = 1e-2
+
+  xtmp = Array(backproject(arrayType(y), angles; geometry = geom))
+  x2 = reshape(Array(adjoint(op) * arrayType(vec(y1))), size(xtmp)...)
+  @test xtmp ≈ x2 rtol = 1e-2
+  true
+end
 
 @testset "Linear Operators" begin
   @testset for arrayType in arrayTypes
-    #@info "test DCT-II and DCT-IV Ops: $arrayType"
-    #for N in [2,8,16,32]
-    #  @test testDCT1d(N;arrayType) skip = arrayType != Array # Not implemented for GPUs
-    #end
-    #@info "test FFTOp: $arrayType"
-    #for N in [8,16,32]
-    #  @test testFFT1d(N,false;arrayType)
-    #  @test testFFT1d(N,true;arrayType)
-    #  @test testFFT2d(N,false;arrayType)
-    #  @test testFFT2d(N,true;arrayType)
-    #end
-    #@info "test WeightingOp: $arrayType"
-    #@test testWeighting(512;arrayType)
-    #@info "test GradientOp: $arrayType"
-    #@test testGradOp1d(512;arrayType)
-    #@test testGradOp2d(64;arrayType)
-    #@test testDirectionalGradOp(64;arrayType) 
-    #@info "test SamplingOp: $arrayType"
-    #@test testSampling(64;arrayType)
-    #@info "test WaveletOp: $arrayType"
-    #@test testWavelet(64,64;arrayType)
-    #@test testWavelet(64,60;arrayType)
-    #@info "test NFFTOp: $arrayType"
-    #@test testNFFT2d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
-    #@test testNFFT3d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
+    @info "test DCT-II and DCT-IV Ops: $arrayType"
+    for N in [2,8,16,32]
+      @test testDCT1d(N;arrayType) skip = arrayType != Array # Not implemented for GPUs
+    end
+    @info "test FFTOp: $arrayType"
+    for N in [8,16,32]
+      @test testFFT1d(N,false;arrayType)
+      @test testFFT1d(N,true;arrayType)
+      @test testFFT2d(N,false;arrayType)
+      @test testFFT2d(N,true;arrayType)
+    end
+    @info "test WeightingOp: $arrayType"
+    @test testWeighting(512;arrayType)
+    @info "test GradientOp: $arrayType"
+    @test testGradOp1d(512;arrayType)
+    @test testGradOp2d(64;arrayType)
+    @test testDirectionalGradOp(64;arrayType) 
+    @info "test SamplingOp: $arrayType"
+    @test testSampling(64;arrayType)
+    @info "test WaveletOp: $arrayType"
+    @test testWavelet(64,64;arrayType)
+    @test testWavelet(64,60;arrayType)
+    @info "test NFFTOp: $arrayType"
+    @test testNFFT2d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
+    @test testNFFT3d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
     @info "test DiagOp: $arrayType"
     @test testDiagOp(;arrayType)
+    @info "test RadonOp: $arrayType"
+    @test testRadonOp(;arrayType) skip = arrayType == JLArray # Stackoverflow for kernelabstraction
   end
 end

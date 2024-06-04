@@ -5,6 +5,7 @@ using LinearAlgebra
 using FFTW
 using Wavelets
 using NFFT
+using RadonKA
 using JLArrays
 
 arrayTypes = [Array, JLArray]
