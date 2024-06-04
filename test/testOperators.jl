@@ -150,8 +150,8 @@ function testDirectionalGradOp(N=64;arrayType = Array)
   G2 = GradientOp(eltype(x); shape=size(x), dims=2, S = typeof(xop))
   G_1d = Bidiagonal(ones(N),-ones(N-1), :U)[1:N-1,:]
 
-  y1 = Array(G1*x)
-  y2 = Array(G2*x)
+  y1 = Array(G1*xop)
+  y2 = Array(G2*xop)
   y1_ref = zeros(ComplexF64, N-1,N)
   y2_ref = zeros(ComplexF64, N, N-1)
   for i=1:N
@@ -183,7 +183,7 @@ function testSampling(N=64;arrayType = Array)
   idx = shuffle(collect(1:N^2)[1:N*div(N,2)])
   SOp = SamplingOp(ComplexF64, pattern=idx, shape=(N,N), S = typeof(xop))
   y = Array(SOp*xop)
-  x2 = Array(adjoint(SOp)*y)
+  x2 = Array(adjoint(SOp)*arrayType(y))
   # mask-based sampling
   msk = zeros(Bool,N*N);msk[idx].=true
   SOp2 = SamplingOp(ComplexF64, pattern=msk, S = typeof(xop))
@@ -258,7 +258,7 @@ function testNFFT2d(N=16;arrayType = Array)
   # test type stability;
   # TODO: Ensure type stability for Trajectory objects and test here
   nodes = Float32.(nodes)
-  F_nfft = NFFTOp(ComplexF32; shape=(N,N), nodes, symmetrize=false, S = typeof(xop))
+  F_nfft = NFFTOp(ComplexF32; shape=(N,N), nodes, symmetrize=false, S = typeof(ComplexF32.(xop)))
 
   y_nfft = F_nfft * ComplexF32.(xop)
   y_adj_nfft = adjoint(F_nfft) * ComplexF32.(xop)
@@ -316,31 +316,31 @@ end
 # TODO RadonOp
 
 @testset "Linear Operators" begin
-  for arrayType in arrayTypes
-    @info "test DCT-II and DCT-IV Ops"
+  @testset for arrayType in arrayTypes
+    @info "test DCT-II and DCT-IV Ops: $arrayType"
     for N in [2,8,16,32]
-      @test testDCT1d(N;arrayType) skip = !isa(arrayType, Array)
+      @test testDCT1d(N;arrayType) skip = arrayType != Array # Not implemented for GPUs
     end
-    @info "test FFTOp"
+    @info "test FFTOp: $arrayType"
     for N in [8,16,32]
       @test testFFT1d(N,false;arrayType)
       @test testFFT1d(N,true;arrayType)
       @test testFFT2d(N,false;arrayType)
       @test testFFT2d(N,true;arrayType)
     end
-    @info "test WeightingOp"
+    @info "test WeightingOp: $arrayType"
     @test testWeighting(512;arrayType)
-    @info "test GradientOp"
+    @info "test GradientOp: $arrayType"
     @test testGradOp1d(512;arrayType)
     @test testGradOp2d(64;arrayType)
     @test testDirectionalGradOp(64;arrayType) 
-    @info "test SamplingOp"
+    @info "test SamplingOp: $arrayType"
     @test testSampling(64;arrayType)
-    @info "test WaveletOp"
+    @info "test WaveletOp: $arrayType"
     @test testWavelet(64,64;arrayType)
     @test testWavelet(64,60;arrayType)
-    @info "test NFFTOp"
-    @test testNFFT2d(;arrayType) skip = arrayType == JLArray
-    @test testNFFT3d(;arrayType) skip = arrayType == JLArray
+    @info "test NFFTOp: $arrayType"
+    @test testNFFT2d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
+    @test testNFFT3d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
   end
 end

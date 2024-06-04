@@ -34,8 +34,9 @@ function SamplingOpImpl(T::Type{<:Number}, pattern::AbstractArray{Int}, shape::T
 end
 
 function SamplingOpImpl(T::Type{<:Number}, pattern::AbstractArray{Bool}; S = Vector{T})
-
-  function prod!(res::Vector{U}, x::Vector{V}) where {U,V}
+  pattern = copyto!(similar(S(undef,0), Bool, size(pattern)...), pattern)
+  
+  function prod!(res::AbstractArray{U}, x::AbstractArray{V}) where {U,V}
     res .= pattern.*x
   end
 

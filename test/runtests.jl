@@ -7,7 +7,7 @@ using Wavelets
 using NFFT
 using JLArrays
 
-arrayTypes = [Array]
+arrayTypes = [Array, JLArray]
 
 @testset "LinearOperatorCollection" begin
   include("testNormalOp.jl")
