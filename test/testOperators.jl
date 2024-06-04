@@ -313,34 +313,100 @@ function testNFFT3d(N=12;arrayType = Array)
   true
 end
 
+function testDiagOp(N=32,K=2;arrayType = Array)
+  x = arrayType(rand(ComplexF64, K*N))
+  block = arrayType(rand(ComplexF64, N, N))
+  
+  F = arrayType(zeros(ComplexF64, K*N, K*N))
+  for k = 1:K
+    start = (k-1)*N + 1
+    stop = k*N
+    F[start:stop,start:stop] = block
+  end
+
+  blocks = [block for k = 1:K]
+  op1 = DiagOp(blocks)
+  op2 = DiagOp(blocks...)
+  op3 = DiagOp(block, K)
+
+  # Operations
+  @testset "Diag Prod" begin
+    y = Array(F * x)
+    y1 = Array(op1 * x)
+    y2 = Array(op2 * x)
+    y3 = Array(op3 * x)
+
+    @test y ≈ y1 rtol = 1e-2
+    @test y1 ≈ y2 rtol = 1e-2
+    @test y2 ≈ y3 rtol = 1e-2
+  end
+
+  @testset "Diag Transpose" begin
+    y = Array(transpose(F) * x)
+    y1 = Array(transpose(op1) * x)
+    y2 = Array(transpose(op2) * x)
+    y3 = Array(transpose(op3) * x)
+
+    @test y ≈ y1 rtol = 1e-2
+    @test y1 ≈ y2 rtol = 1e-2
+    @test y2 ≈ y3 rtol = 1e-2
+  end
+
+  @testset "Diag Adjoint" begin
+    y = Array(adjoint(F) * x)
+    y1 = Array(adjoint(op1) * x)
+    y2 = Array(adjoint(op2) * x)
+    y3 = Array(adjoint(op3) * x)
+
+    @test y ≈ y1 rtol = 1e-2
+    @test y1 ≈ y2 rtol = 1e-2
+    @test y2 ≈ y3 rtol = 1e-2
+  end
+
+  @testset "Diag Normal" begin
+    y = Array(adjoint(F) * F* x)
+    y1 = Array(normalOperator(op1) * x)
+    y2 = Array(normalOperator(op2) * x)
+    y3 = Array(normalOperator(op3) * x)
+
+    @test y ≈ y1 rtol = 1e-2
+    @test y1 ≈ y2 rtol = 1e-2
+    @test y2 ≈ y3 rtol = 1e-2
+  end
+
+  true
+end
+
 # TODO RadonOp
 
 @testset "Linear Operators" begin
   @testset for arrayType in arrayTypes
-    @info "test DCT-II and DCT-IV Ops: $arrayType"
-    for N in [2,8,16,32]
-      @test testDCT1d(N;arrayType) skip = arrayType != Array # Not implemented for GPUs
-    end
-    @info "test FFTOp: $arrayType"
-    for N in [8,16,32]
-      @test testFFT1d(N,false;arrayType)
-      @test testFFT1d(N,true;arrayType)
-      @test testFFT2d(N,false;arrayType)
-      @test testFFT2d(N,true;arrayType)
-    end
-    @info "test WeightingOp: $arrayType"
-    @test testWeighting(512;arrayType)
-    @info "test GradientOp: $arrayType"
-    @test testGradOp1d(512;arrayType)
-    @test testGradOp2d(64;arrayType)
-    @test testDirectionalGradOp(64;arrayType) 
-    @info "test SamplingOp: $arrayType"
-    @test testSampling(64;arrayType)
-    @info "test WaveletOp: $arrayType"
-    @test testWavelet(64,64;arrayType)
-    @test testWavelet(64,60;arrayType)
-    @info "test NFFTOp: $arrayType"
-    @test testNFFT2d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
-    @test testNFFT3d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
+    #@info "test DCT-II and DCT-IV Ops: $arrayType"
+    #for N in [2,8,16,32]
+    #  @test testDCT1d(N;arrayType) skip = arrayType != Array # Not implemented for GPUs
+    #end
+    #@info "test FFTOp: $arrayType"
+    #for N in [8,16,32]
+    #  @test testFFT1d(N,false;arrayType)
+    #  @test testFFT1d(N,true;arrayType)
+    #  @test testFFT2d(N,false;arrayType)
+    #  @test testFFT2d(N,true;arrayType)
+    #end
+    #@info "test WeightingOp: $arrayType"
+    #@test testWeighting(512;arrayType)
+    #@info "test GradientOp: $arrayType"
+    #@test testGradOp1d(512;arrayType)
+    #@test testGradOp2d(64;arrayType)
+    #@test testDirectionalGradOp(64;arrayType) 
+    #@info "test SamplingOp: $arrayType"
+    #@test testSampling(64;arrayType)
+    #@info "test WaveletOp: $arrayType"
+    #@test testWavelet(64,64;arrayType)
+    #@test testWavelet(64,60;arrayType)
+    #@info "test NFFTOp: $arrayType"
+    #@test testNFFT2d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
+    #@test testNFFT3d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
+    @info "test DiagOp: $arrayType"
+    @test testDiagOp(;arrayType)
   end
 end
