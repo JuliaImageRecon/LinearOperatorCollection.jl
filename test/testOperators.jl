@@ -24,7 +24,6 @@ function testDCT1d(N=32;arrayType = Array)
 
   x2 = adjoint(D3)*y3
   @test norm(x2 - x) / norm(x) ≈ 0 atol=0.01
-  true
 end
 
 function testFFT1d(N=32,shift=true;arrayType = Array)
@@ -52,7 +51,6 @@ function testFFT1d(N=32,shift=true;arrayType = Array)
     x2 = adjoint(D2)*y2
   end
   @test norm(x1 - x2) / norm(x1) ≈ 0 atol=0.01
-  true
 end
 
 function testFFT2d(N=32,shift=true;arrayType = Array)
@@ -84,7 +82,6 @@ function testFFT2d(N=32,shift=true;arrayType = Array)
     x2 = adjoint(D2)*y2
   end
   @test norm(x1 - x2) / norm(x1) ≈ 0 atol=0.01
-  true
 end
 
 function testWeighting(N=512;arrayType = Array)
@@ -103,7 +100,6 @@ function testWeighting(N=512;arrayType = Array)
   y = repeat(weights,2) .* x2
 
   @test norm(Array(y2) - y) / norm(y) ≈ 0 atol=0.01
-  true
 end
 
 function testGradOp1d(N=512;arrayType = Array)
@@ -120,7 +116,6 @@ function testGradOp1d(N=512;arrayType = Array)
   xr0 = transpose(G0)*y0
 
   @test norm(xr - xr0) / norm(xr0) ≈ 0 atol=0.001
-  true
 end
 
 function testGradOp2d(N=64;arrayType = Array)
@@ -140,7 +135,6 @@ function testGradOp2d(N=64;arrayType = Array)
   xr0 = vec(xr0)
 
   @test norm(xr - xr0) / norm(xr0) ≈ 0 atol=0.001
-  true
 end
 
 function testDirectionalGradOp(N=64;arrayType = Array)
@@ -173,7 +167,6 @@ function testDirectionalGradOp(N=64;arrayType = Array)
   end
   @test norm(x1r-vec(x1r_ref)) / norm(x1r_ref) ≈ 0 atol=0.001
   @test norm(x2r-vec(x2r_ref)) / norm(x2r_ref) ≈ 0 atol=0.001
-  true
 end
 
 function testSampling(N=64;arrayType = Array)
@@ -196,7 +189,6 @@ function testSampling(N=64;arrayType = Array)
   @test norm(y - y_ref) / norm(y_ref) ≈ 0 atol=0.000001
   @test norm(x2 - x2_ref) / norm(x2_ref) ≈ 0 atol=0.000001
   @test norm(y2 - x2_ref) / norm(x2_ref) ≈ 0 atol=0.000001
-  true
 end
 
 function testWavelet(M=64,N=60;arrayType = Array)
@@ -208,7 +200,6 @@ function testWavelet(M=64,N=60;arrayType = Array)
   x_reco = reshape( adjoint(WOp)*x_wavelet, M, N)
 
   @test norm(x_reco - x) / norm(x) ≈ 0 atol=0.001
-  true
 end
 
 # test FourierOperators
@@ -265,7 +256,6 @@ function testNFFT2d(N=16;arrayType = Array)
 
   @test Complex{eltype(nodes)} === eltype(y_nfft)
   @test Complex{eltype(nodes)} === eltype(y_adj_nfft)
-  true
 end
 
 function testNFFT3d(N=12;arrayType = Array)
@@ -310,7 +300,6 @@ function testNFFT3d(N=12;arrayType = Array)
   y_AHA = F' * F * vec(x)
   @test y_AHA_nfft_1 ≈ y_AHA_nfft_2   rtol = 1e-2
   @test y_AHA ≈ y_AHA_nfft_1   rtol = 1e-2
-  true
 end
 
 function testDiagOp(N=32,K=2;arrayType = Array)
@@ -374,7 +363,6 @@ function testDiagOp(N=32,K=2;arrayType = Array)
     @test y2 ≈ y3 rtol = 1e-2
   end
 
-  true
 end
 
 function testRadonOp(N=32;arrayType = Array)
@@ -392,39 +380,38 @@ function testRadonOp(N=32;arrayType = Array)
   xtmp = Array(backproject(arrayType(y), angles; geometry = geom))
   x2 = reshape(Array(adjoint(op) * arrayType(vec(y1))), size(xtmp)...)
   @test xtmp ≈ x2 rtol = 1e-2
-  true
 end
 
 @testset "Linear Operators" begin
   @testset for arrayType in arrayTypes
     @info "test DCT-II and DCT-IV Ops: $arrayType"
     for N in [2,8,16,32]
-      @test testDCT1d(N;arrayType) skip = arrayType != Array # Not implemented for GPUs
+      arrayType != Array || @testset testDCT1d(N;arrayType) # Not implemented for GPUs
     end
     @info "test FFTOp: $arrayType"
     for N in [8,16,32]
-      @test testFFT1d(N,false;arrayType)
-      @test testFFT1d(N,true;arrayType)
-      @test testFFT2d(N,false;arrayType)
-      @test testFFT2d(N,true;arrayType)
+      @testset testFFT1d(N,false;arrayType)
+      @testset testFFT1d(N,true;arrayType)
+      @testset testFFT2d(N,false;arrayType)
+      @testset testFFT2d(N,true;arrayType)
     end
     @info "test WeightingOp: $arrayType"
-    @test testWeighting(512;arrayType)
+    @testset testWeighting(512;arrayType)
     @info "test GradientOp: $arrayType"
-    @test testGradOp1d(512;arrayType)
-    @test testGradOp2d(64;arrayType)
-    @test testDirectionalGradOp(64;arrayType) 
+    @testset testGradOp1d(512;arrayType)
+    @testset testGradOp2d(64;arrayType)
+    @testset testDirectionalGradOp(64;arrayType) 
     @info "test SamplingOp: $arrayType"
-    @test testSampling(64;arrayType)
+    @testset testSampling(64;arrayType)
     @info "test WaveletOp: $arrayType"
-    @test testWavelet(64,64;arrayType)
-    @test testWavelet(64,60;arrayType)
+    @testset testWavelet(64,64;arrayType)
+    @testset testWavelet(64,60;arrayType)
     @info "test NFFTOp: $arrayType"
-    @test testNFFT2d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
-    @test testNFFT3d(;arrayType) skip = arrayType == JLArray # JLArray does not have a NFFTPlan
+    arrayType == JLArray || @testset testNFFT2d(;arrayType) # JLArray does not have a NFFTPlan
+    arrayType == JLArray || @testset testNFFT3d(;arrayType) # JLArray does not have a NFFTPlan
     @info "test DiagOp: $arrayType"
-    @test testDiagOp(;arrayType)
+    @testset testDiagOp(;arrayType)
     @info "test RadonOp: $arrayType"
-    @test testRadonOp(;arrayType) skip = arrayType == JLArray # Stackoverflow for kernelabstraction
+    arrayType == JLArray || @testset testRadonOp(;arrayType) # Stackoverflow for kernelabstraction
   end
 end
