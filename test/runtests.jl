@@ -8,7 +8,8 @@ using NFFT
 using RadonKA
 using JLArrays
 
-arrayTypes = [Array, JLArray]
+areTypesDefined = @isdefined arrayTypes
+arrayTypes = areTypesDefined ? arrayTypes : [Array, JLArray]
 
 @testset "LinearOperatorCollection" begin
   include("testNormalOp.jl")

@@ -234,7 +234,7 @@ function testNFFT2d(N=16;arrayType = Array)
   F_nfft.toeplitz = false
   AHA = normalOperator(F_nfft)
   y_AHA_nfft = Array(AHA * xop)
-  y_AHA = F' * F * xop
+  y_AHA = F' * F * vec(x)
   @test y_AHA ≈ y_AHA_nfft   rtol = 1e-2
 
   # test AHA with Toeplitz
