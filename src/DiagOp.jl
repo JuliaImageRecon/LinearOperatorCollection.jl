@@ -43,6 +43,7 @@ function DiagOp(ops)
     ncol += size(ops[i], 2)
     S = promote_type(S, LinearOperators.storage_type(ops[i]))
   end
+  isconcretetype(S) || throw(LinearOperatorException("Storage types cannot be promoted to a concrete type"))
 
   xIdx = cumsum(vcat(1,[size(ops[i], 2) for i=1:length(ops)]))
   yIdx = cumsum(vcat(1,[size(ops[i], 1) for i=1:length(ops)]))
@@ -136,6 +137,7 @@ end
 function LinearOperatorCollection.normalOperator(diag::DiagOp, W=opEye(eltype(diag), size(diag,1), S = LinearOperators.storage_type(diag)); copyOpsFn = copy, kwargs...)
   T = promote_type(eltype(diag), eltype(W))
   S = promote_type(LinearOperators.storage_type(diag), LinearOperators.storage_type(W))
+  isconcretetype(S) || throw(LinearOperatorException("Storage types cannot be promoted to a concrete type"))
   tmp = S(undef, diag.nrow)
   tmp .= one(eltype(diag))
   weights = W*tmp

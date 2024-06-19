@@ -36,7 +36,8 @@ composition/product of two Operators. Differs with * since it can handle normal 
 function ProdOp(A, B)
   nrow = size(A, 1)
   ncol = size(B, 2)
-  S = promote_type(storage_type(A), storage_type(B))
+  S = promote_type(LinearOperators.storage_type(A), LinearOperators.storage_type(B))
+  isconcretetype(S) || throw(LinearOperatorException("Storage types cannot be promoted to a concrete type"))
   tmp_ = S(undef, size(B, 1))
 
   function produ!(res, x::AbstractVector{T}, tmp) where T<:Union{Real,Complex}
