@@ -11,6 +11,11 @@ steps:
       using Pkg
       Pkg.add("CUDA")
       Pkg.add("CuNFFT")
+      Pkg.add("JLArrays")
+      Pkg.add("NFFT")
+      Pkg.add("Wavelets")
+      Pkg.add("FFTW")
+      Pkg.add("RadonKA")
       Pkg.instantiate()
       include("test/gpu/cuda.jl")'
     timeout_in_minutes: 30
