@@ -7,12 +7,12 @@ generates a `LinearOperator` which multiplies an input vector index-wise with `w
 * `weights::Vector{T}` - weights vector
 * `rep::Int=1`         - number of sub-arrays that need to be multiplied with `weights`
 """
-mutable struct WeightingOp{T} <: AbstractLinearOperatorFromCollection{T}
+mutable struct WeightingOp{T, vecT <: AbstractVector{T}} <: AbstractLinearOperatorFromCollection{T}
   op::LinearOperator{T}
-  weights::Vector{T}
+  weights::vecT
   function WeightingOp(weights::vecT, rep::Int=1) where {T <: Number, vecT<:AbstractVector{T}}
     weights_cat = repeat(weights,rep)
-    return new{T}(opDiagonal(weights_cat), weights_cat)
+    return new{T, vecT}(opDiagonal(weights_cat), weights_cat)
   end
 end
 WeightingOp(::Type{T}; weights::vecT, rep::Int=1) where {T <: Number, vecT<:AbstractVector{T}} = WeightingOp(weights, rep)

@@ -7,7 +7,7 @@ export ProdOp
   that the latter can be made copyable. This is particularly relevant for
   multi-threaded code
 """
-mutable struct ProdOp{T,U,V} <: AbstractLinearOperatorFromCollection{T}
+mutable struct ProdOp{T,U,V, vecT <: AbstractVector{T}} <: AbstractLinearOperatorFromCollection{T}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -21,11 +21,11 @@ mutable struct ProdOp{T,U,V} <: AbstractLinearOperatorFromCollection{T}
   args5 :: Bool
   use_prod5! :: Bool
   allocated5 :: Bool
-  Mv5 :: Vector{T}
-  Mtu5 :: Vector{T}
+  Mv5 :: vecT
+  Mtu5 :: vecT
   A::U
   B::V
-  tmp::Vector{T}
+  tmp::vecT
 end
 
 """
@@ -33,11 +33,12 @@ end
 
 composition/product of two Operators. Differs with * since it can handle normal operator
 """
-function ProdOp(A,B)
+function ProdOp(A, B)
   nrow = size(A, 1)
   ncol = size(B, 2)
-  S = promote_type(eltype(A), eltype(B))
-  tmp_ = Vector{S}(undef, size(B, 1))
+  S = promote_type(LinearOperators.storage_type(A), LinearOperators.storage_type(B))
+  isconcretetype(S) || throw(LinearOperatorException("Storage types cannot be promoted to a concrete type"))
+  tmp_ = S(undef, size(B, 1))
 
   function produ!(res, x::AbstractVector{T}, tmp) where T<:Union{Real,Complex}
     mul!(tmp, B, x)
@@ -58,7 +59,7 @@ function ProdOp(A,B)
                      (res,x) -> produ!(res,x,tmp_),
                      (res,y) -> tprodu!(res,y,tmp_),
                      (res,y) -> ctprodu!(res,y,tmp_), 
-                     0, 0, 0, false, false, false, S[], S[],
+                     0, 0, 0, false, false, false, similar(tmp_, 0), similar(tmp_, 0),
                      A, B, tmp_)
 
   return Op
@@ -72,5 +73,64 @@ end
 
 Base.:*(::Type{<:ProdOp}, A, B) = ProdOp(A, B)
 Base.:*(::Type{<:ProdOp}, A, args...) = ProdOp(A, *(ProdOp, args...))
+Base.:∘(A::AbstractLinearOperator, B::AbstractLinearOperator) = ProdOp(A, B)
 
 storage_type(op::ProdOp) = typeof(op.Mv5)
+
+mutable struct ProdNormalOp{T,S,U,V <: AbstractVector{T}} <: AbstractLinearOperator{T}
+  nrow :: Int
+  ncol :: Int
+  symmetric :: Bool
+  hermitian :: Bool
+  prod! :: Function
+  tprod! :: Nothing
+  ctprod! :: Nothing
+  nprod :: Int
+  ntprod :: Int
+  nctprod :: Int
+  args5 :: Bool
+  use_prod5! :: Bool
+  allocated5 :: Bool
+  Mv5 :: V
+  Mtu5 :: V
+  opOuter::S
+  normalOpInner::U
+  tmp::V
+end
+
+storage_type(op::ProdNormalOp) = typeof(op.Mv5)
+
+
+function ProdNormalOp(opOuter, normalOpInner, tmp)
+
+  function produ!(y, opOuter, normalOpInner, tmp, x)
+    mul!(tmp, opOuter, x)
+    mul!(tmp, normalOpInner, tmp) # This can be dangerous. We might need to create two tmp vectors
+    return mul!(y, adjoint(opOuter), tmp)
+  end
+
+  return ProdNormalOp(size(opOuter,2), size(opOuter,2), false, false
+         , (res,x) -> produ!(res, opOuter, normalOpInner, tmp, x)
+         , nothing
+         , nothing
+         , 0, 0, 0, false, false, false, similar(tmp, 0), similar(tmp, 0)
+         , opOuter, normalOpInner, tmp)
+end
+
+
+# In this case we are converting the left argument into a 
+# weighting matrix, that is passed to normalOperator
+# TODO Port vom MRIOperators drops given weighting matrix, I just left it out for now
+normalOperator(S::ProdOp{T, <:WeightingOp, matT}; kwargs...) where {T, matT} = normalOperator(S.B, S.A; kwargs...)
+function normalOperator(S::ProdOp, W=opEye(eltype(S),size(S,1), S = storage_type(S)); kwargs...)
+  arrayType = storage_type(S)
+  tmp = arrayType(undef, size(S.A, 2))
+  return ProdNormalOp(S.B, normalOperator(S.A, W; kwargs...), tmp)
+end
+
+function Base.copy(S::ProdNormalOp) 
+  opOuter = copy(S.opOuter)
+  opInner = copy(S.normalOpInner)
+  tmp = copy(S.tmp)
+  return ProdNormalOp(opOuter, opInner, tmp)
+end

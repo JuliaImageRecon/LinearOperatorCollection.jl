@@ -1,11 +1,11 @@
 export vectorizePattern
 
 function LinearOperatorCollection.SamplingOp(::Type{T};
-  pattern::P, shape::Tuple=()) where {P} where T <: Number
+  pattern::P, shape::Tuple=(), S = Vector{T}) where {P} where T <: Number
   if length(shape) == 0
-    return SamplingOpImpl(pattern)
+    return SamplingOpImpl(T, pattern; S = S)
   else
-    return SamplingOpImpl(pattern, shape, T)
+    return SamplingOpImpl(T, pattern, shape, S = S;)
   end
 end
 
@@ -28,16 +28,17 @@ indicated by pattern.
 * `pattern::Array{Int}` - indices to sample
 * `shape::Tuple`        - size of the array to sample
 """
-function SamplingOpImpl(pattern::T, shape::Tuple, type::Type=ComplexF64) where T<:AbstractArray{Int}
+function SamplingOpImpl(T::Type{<:Number}, pattern::AbstractArray{Int}, shape::Tuple; S = Vector{T})
   ndims(pattern)>1 ?  idx = vectorizePattern(pattern, shape) : idx = pattern
-  return opEye(type,length(idx))*opRestriction(idx, prod(shape))
+  return opEye(T,length(idx), S = S)*opRestriction(idx, prod(shape); S = S)
 end
 
-function SamplingOpImpl(pattern::T) where T<:AbstractArray{Bool}
-
-  function prod!(res::Vector{U}, x::Vector{V}) where {U,V}
+function SamplingOpImpl(T::Type{<:Number}, pattern::AbstractArray{Bool}; S = Vector{T})
+  pattern = copyto!(similar(S(undef,0), Bool, size(pattern)...), pattern)
+  
+  function prod!(res::AbstractArray{U}, x::AbstractArray{V}) where {U,V}
     res .= pattern.*x
   end
 
-  return LinearOperator(T, length(pattern), length(pattern), true, false, prod!)
+  return LinearOperator(T, length(pattern), length(pattern), true, false, prod!; S = S)
 end
