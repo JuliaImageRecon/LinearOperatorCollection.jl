@@ -13,6 +13,7 @@ steps:
       using TestEnv
       TestEnv.activate();
       Pkg.add("CUDA")
+      Pkg.add("CuNFFT")
       Pkg.instantiate()
       include("test/gpu/cuda.jl")'
     timeout_in_minutes: 30
