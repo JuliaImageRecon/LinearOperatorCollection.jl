@@ -10,6 +10,7 @@ steps:
       julia --color=yes --project -e '
       using Pkg
       Pkg.add("CUDA")
+      Pkg.add("CuNFFT")
       Pkg.instantiate()
       include("test/gpu/cuda.jl")'
     timeout_in_minutes: 30
