@@ -1,5 +1,5 @@
 steps:
-  - label: "Nvidia GPUs -- LinearOperators.jl"
+  - label: "Nvidia GPUs -- LinearOperatorCollection.jl"
     plugins:
       - JuliaCI/julia#v1:
           version: "1.10"
