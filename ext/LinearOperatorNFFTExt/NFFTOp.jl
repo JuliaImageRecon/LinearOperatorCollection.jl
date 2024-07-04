@@ -41,7 +41,8 @@ generates a `NFFTOpImpl` which evaluates the MRI Fourier signal encoding operato
 """
 function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz=false, oversamplingFactor=1.25, kernelSize=3, S = Vector{Complex{T}}, kargs...) where {T}
 
-  plan = plan_nfft(S, tr, shape, m=kernelSize, σ=oversamplingFactor, precompute=NFFT.TENSOR,
+  baseArrayType = Base.typename(S).wrapper # https://github.com/JuliaLang/julia/issues/35543
+  plan = plan_nfft(baseArrayType, tr, shape, m=kernelSize, σ=oversamplingFactor, precompute=NFFT.TENSOR,
 		                          fftflags=FFTW.ESTIMATE, blocking=true)
 
   return NFFTOpImpl{eltype(S), S, typeof(plan)}(size(tr,2), prod(shape), false, false
@@ -141,7 +142,8 @@ function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=opEye(eltype(nfft), size(nfft, 
   # λ = calculateToeplitzKernel(shape, nfft.plan.k; m = nfft.plan.params.m, σ = nfft.plan.params.σ, window = nfft.plan.params.window, LUTSize = nfft.plan.params.LUTSize, fftplan = fftplan)
 
   shape_os = 2 .* shape
-  p = plan_nfft(typeof(tmpVec), nfft.plan.k, shape_os; m = nfft.plan.params.m, σ = nfft.plan.params.σ,
+  baseArrayType = Base.typename(typeof(tmpVec)).wrapper # https://github.com/JuliaLang/julia/issues/35543
+  p = plan_nfft(baseArrayType, nfft.plan.k, shape_os; m = nfft.plan.params.m, σ = nfft.plan.params.σ,
 		precompute=NFFT.POLYNOMIAL, fftflags=FFTW.ESTIMATE, blocking=true)
   tmpOnes = similar(tmpVec, size(nfft.plan.k, 2))
   tmpOnes .= one(T)
