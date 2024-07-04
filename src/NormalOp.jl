@@ -1,5 +1,21 @@
 export normalOperator
 
+"""
+    NormalOp(T::Type; parent, weights)
+  
+Lazy normal operator of `parent` with an optional weighting operator `weights.`
+Computes `adjoint(parent) * weights * parent`.
+
+# Required Argument
+  * `T`                        - type of elements, .e.g. `Float64` for `ComplexF32`
+
+# Required Keyword argument
+  * `parent`                   - Base operator
+
+# Optional Keyword argument
+  * `weights`                  - Optional weights for normal operator. Must already be of form `weights = adjoint.(w) .* w`
+
+"""
 function LinearOperatorCollection.NormalOp(::Type{T}; parent, weights = opEye(eltype(parent), size(parent, 1), S = storage_type(parent))) where T <: Number
   return NormalOp(T, parent, weights)
 end
@@ -47,7 +63,6 @@ function NormalOpImpl(parent, weights, tmp)
   function produ!(y, parent, weights, tmp, x)
     mul!(tmp, parent, x)
     mul!(tmp, weights, tmp) # This can be dangerous. We might need to create two tmp vectors
-    mul!(tmp, weights, tmp)
     return mul!(y, adjoint(parent), tmp)
   end
 
@@ -63,6 +78,11 @@ function Base.copy(S::NormalOpImpl)
   return NormalOpImpl(copy(S.parent), S.weights, copy(S.tmp))
 end
 
+"""
+  normalOperator(parent (, weights); kwargs...)
+
+  Constructs a normal operator of the parent in an opinionated way, i.e. it tries to apply optimisations to the resulting operator.
+"""
 function normalOperator(parent, weights=opEye(eltype(parent), size(parent, 1), S= storage_type(parent)); kwargs...)
   return NormalOp(eltype(storage_type((parent))); parent = parent, weights = weights)
 end

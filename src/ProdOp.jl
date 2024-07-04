@@ -121,7 +121,12 @@ end
 # In this case we are converting the left argument into a 
 # weighting matrix, that is passed to normalOperator
 # TODO Port vom MRIOperators drops given weighting matrix, I just left it out for now
-normalOperator(S::ProdOp{T, <:WeightingOp, matT}; kwargs...) where {T, matT} = normalOperator(S.B, S.A; kwargs...)
+"""
+    normalOperator(prod::ProdOp{T, <:WeightingOp, matT}; kwargs...)
+
+Fuses weights of `ẀeightingOp` by computing `adjoint.(weights) .* weights`
+"""
+normalOperator(S::ProdOp{T, <:WeightingOp, matT}; kwargs...) where {T, matT} = normalOperator(S.B, WeightingOp(adjoint.(S.A.weights) .* S.A.weights); kwargs...)
 function normalOperator(S::ProdOp, W=opEye(eltype(S),size(S,1), S = storage_type(S)); kwargs...)
   arrayType = storage_type(S)
   tmp = arrayType(undef, size(S.A, 2))
