@@ -6,8 +6,7 @@ end
 
 # TODO Are weights always restricted to T or can they also be real(T)?
 function NormalOp(::Type{T}, parent, ::Nothing) where T
-  weights = similar(storage_type(parent), size(parent, 1))
-  weights .= one(eltype(parent))
+  weights = opEye(eltype(parent), size(parent, 1), S = storage_type(parent))
   return NormalOp(T, parent, weights)
 end
 NormalOp(::Type{T}, parent, weights::AbstractVector{T}) where T = NormalOp(T, parent, WeightingOp(weights))
@@ -48,6 +47,7 @@ function NormalOpImpl(parent, weights, tmp)
   function produ!(y, parent, weights, tmp, x)
     mul!(tmp, parent, x)
     mul!(tmp, weights, tmp) # This can be dangerous. We might need to create two tmp vectors
+    mul!(tmp, weights, tmp)
     return mul!(y, adjoint(parent), tmp)
   end
 
