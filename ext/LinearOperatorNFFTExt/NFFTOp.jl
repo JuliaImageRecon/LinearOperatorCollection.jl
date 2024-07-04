@@ -49,7 +49,7 @@ function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz=false, oversam
             , (res,x) -> produ!(res,plan,x)
             , nothing
             , (res,y) -> ctprodu!(res,plan,y)
-            , 0, 0, 0, false, false, false, S(), S()
+            , 0, 0, 0, false, false, false, S(undef, 0), S(undef, 0)
             , plan, toeplitz)
 end
 
