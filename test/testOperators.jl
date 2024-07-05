@@ -363,6 +363,23 @@ function testDiagOp(N=32,K=2;arrayType = Array)
     @test y2 ≈ y3 rtol = 1e-2
   end
 
+  @testset "Weighted Diag Normal" begin
+    w = rand(eltype(op1), size(op1, 1))
+    wop = WeightingOp(w)
+    prod1 = ProdOp(wop, op1)
+    prod2 = ProdOp(wop, op2)
+    prod3 = ProdOp(wop, op3)
+
+    y = Array(adjoint(F) * adjoint(wop) * wop * F* x)
+    y1 = Array(normalOperator(prod1) * x)
+    y2 = Array(normalOperator(prod2) * x)
+    y3 = Array(normalOperator(prod3) * x)
+
+    @test y ≈ y1 rtol = 1e-2
+    @test y1 ≈ y2 rtol = 1e-2
+    @test y2 ≈ y3 rtol = 1e-2
+  end
+
 end
 
 function testRadonOp(N=32;arrayType = Array)
