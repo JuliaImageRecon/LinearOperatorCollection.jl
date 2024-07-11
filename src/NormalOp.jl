@@ -20,14 +20,13 @@ function LinearOperatorCollection.NormalOp(::Type{T}; parent, weights = opEye(el
   return NormalOp(T, parent, weights)
 end
 
-# TODO Are weights always restricted to T or can they also be real(T)?
 function NormalOp(::Type{T}, parent, ::Nothing) where T
   weights = opEye(eltype(parent), size(parent, 1), S = storage_type(parent))
   return NormalOp(T, parent, weights)
 end
-NormalOp(::Type{T}, parent, weights::AbstractVector{T}) where T = NormalOp(T, parent, WeightingOp(weights))
+NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights::AbstractVector{T}) where T = NormalOp(T, parent, WeightingOp(weights))
 
-NormalOp(::Type{T}, parent, weights::AbstractLinearOperator{T}; kwargs...) where T = NormalOpImpl(parent, weights)
+NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights::AbstractLinearOperator{T}; kwargs...) where T = NormalOpImpl(parent, weights)
 
 mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T}
   nrow :: Int
