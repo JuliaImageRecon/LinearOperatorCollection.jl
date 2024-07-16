@@ -51,12 +51,29 @@ function linearOperatorList()
   return subtypes(AbstractLinearOperatorFromCollection)
 end
 
+# TODO (except for basetype) copied from RegLS, maybe place in utility package
+function filterKwargs(T::Type, kwargWarning, kwargs)
+  # If we don't take the basetype we won't find any methods
+  baseType = Base.typename(T).wrapper # https://github.com/JuliaLang/julia/issues/35543
+  table = methods(baseType)
+  keywords = union(Base.kwarg_decl.(table)...)
+  filtered = filter(in(keywords), keys(kwargs))
+
+  if length(filtered) < length(kwargs) && kwargWarning
+    filteredout = filter(!in(keywords), keys(kwargs))
+    @warn "The following arguments were passed but filtered out: $(join(filteredout, ", ")). Please watch closely if this introduces unexpexted behaviour in your code."
+  end
+
+  return [key=>kwargs[key] for key in filtered]
+end
+
+
 # Next we create the factory methods. We probably want to given
 # a better error message if the extension module is not loaded
 for op in linearOperatorList()
   @eval begin
-    function createLinearOperator(::Type{ Op }; kargs...) where Op <: $op{T} where T <: Number
-      return $op(T; kargs...)
+    function createLinearOperator(::Type{ Op }; kwargWarning::Bool = true, kwargs...) where Op <: $op{T} where T <: Number
+      return $op(T; filterKwargs(Op,kwargWarning,kwargs)...)
     end
   end
 end
