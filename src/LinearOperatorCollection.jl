@@ -108,4 +108,35 @@ include("SamplingOp.jl")
 include("NormalOp.jl")
 include("DiagOp.jl")
 
+function promote_storage_types(A, B)
+  A_type = storage_type(A)
+  B_type = storage_type(B)
+  S = promote_type(A_type, B_type)
+  if !isconcretetype(S)
+    # Find common eltype
+    elType = promote_type(eltype(A), eltype(B))
+    if !isconcretetype(elType)
+      throw(LinearOperatorException("Storage types cannot be promoted to a concrete type"))
+    end
+
+    # Same base type
+    A_base = Base.typename(A_type).wrapper
+    B_base = Base.typename(B_type).wrapper
+    if A_base != B_base
+      throw(LinearOperatorException("Storage types cannot be promoted to a common base type"))
+    end
+
+    # LinearOperators only accepts DataTypes, so we cant just do A_base{elType}, since that might be a UnionAll
+    # Check if either A_type or B_type have the fitting eltype
+    if eltype(A_type) == elType
+      S = A_type
+    elseif eltype(B_type) == elType
+      S = B_type
+    else
+      throw(LinearOperatorException("Storage types cannot be promoted to a common eltype"))
+    end
+  end
+  return S
+end
+
 end

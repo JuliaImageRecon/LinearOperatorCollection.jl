@@ -52,8 +52,7 @@ end
 LinearOperators.storage_type(op::NormalOpImpl) = typeof(op.Mv5)
 
 function NormalOpImpl(parent, weights)
-  S = promote_type(storage_type(parent), storage_type(weights))
-  isconcretetype(S) || throw(LinearOperatorException("Storage types cannot be promoted to a concrete type"))
+  S = promote_storage_types(parent, weights)
   tmp = S(undef, size(parent, 1))
   return NormalOpImpl(parent, weights, tmp)
 end
