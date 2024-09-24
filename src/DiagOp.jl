@@ -53,7 +53,7 @@ function DiagOp(ops)
                      (res,y) -> (diagOpTProd(res,y,ncol,yIdx,xIdx,ops)),
                      (res,y) -> (diagOpCTProd(res,y,ncol,yIdx,xIdx,ops)),
                      0, 0, 0, false, false, false, S(undef, 0), S(undef, 0),
-                     [ops...], false, xIdx, yIdx)
+                     ops, false, xIdx, yIdx)
 
   return Op
 end
