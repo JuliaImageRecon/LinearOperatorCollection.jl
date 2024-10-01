@@ -317,6 +317,8 @@ function testDiagOp(N=32,K=2;arrayType = Array)
   op1 = DiagOp(blocks)
   op2 = DiagOp(blocks...)
   op3 = DiagOp(block, K)
+  op4 = DiagOp(@view blocks[1:K])
+
 
   # Operations
   @testset "Diag Prod" begin
@@ -324,10 +326,14 @@ function testDiagOp(N=32,K=2;arrayType = Array)
     y1 = Array(op1 * x)
     y2 = Array(op2 * x)
     y3 = Array(op3 * x)
+    y4 = Array(op4 * x)
+
 
     @test y ≈ y1 rtol = 1e-2
     @test y1 ≈ y2 rtol = 1e-2
     @test y2 ≈ y3 rtol = 1e-2
+    @test y4 ≈ y1 rtol = 1e-2
+
   end
 
   @testset "Diag Transpose" begin
@@ -335,10 +341,12 @@ function testDiagOp(N=32,K=2;arrayType = Array)
     y1 = Array(transpose(op1) * x)
     y2 = Array(transpose(op2) * x)
     y3 = Array(transpose(op3) * x)
+    y4 = Array(transpose(op4) * x)
 
     @test y ≈ y1 rtol = 1e-2
     @test y1 ≈ y2 rtol = 1e-2
     @test y2 ≈ y3 rtol = 1e-2
+    @test y4 ≈ y1 rtol = 1e-2
   end
 
   @testset "Diag Adjoint" begin
@@ -346,10 +354,12 @@ function testDiagOp(N=32,K=2;arrayType = Array)
     y1 = Array(adjoint(op1) * x)
     y2 = Array(adjoint(op2) * x)
     y3 = Array(adjoint(op3) * x)
+    y4 = Array(adjoint(op4) * x)
 
     @test y ≈ y1 rtol = 1e-2
     @test y1 ≈ y2 rtol = 1e-2
     @test y2 ≈ y3 rtol = 1e-2
+    @test y4 ≈ y1 rtol = 1e-2
   end
 
   @testset "Diag Normal" begin
@@ -357,10 +367,13 @@ function testDiagOp(N=32,K=2;arrayType = Array)
     y1 = Array(normalOperator(op1) * x)
     y2 = Array(normalOperator(op2) * x)
     y3 = Array(normalOperator(op3) * x)
+    y4 = Array(normalOperator(op4) * x)
 
     @test y ≈ y1 rtol = 1e-2
     @test y1 ≈ y2 rtol = 1e-2
     @test y2 ≈ y3 rtol = 1e-2
+    @test y4 ≈ y1 rtol = 1e-2
+
   end
 
   @testset "Weighted Diag Normal" begin
@@ -369,15 +382,19 @@ function testDiagOp(N=32,K=2;arrayType = Array)
     prod1 = ProdOp(wop, op1)
     prod2 = ProdOp(wop, op2)
     prod3 = ProdOp(wop, op3)
+    prod4 = ProdOp(wop, op4)
 
     y = Array(adjoint(F) * adjoint(wop) * wop * F* x)
     y1 = Array(normalOperator(prod1) * x)
     y2 = Array(normalOperator(prod2) * x)
     y3 = Array(normalOperator(prod3) * x)
+    y4 = Array(normalOperator(prod4) * x)
 
     @test y ≈ y1 rtol = 1e-2
     @test y1 ≈ y2 rtol = 1e-2
     @test y2 ≈ y3 rtol = 1e-2
+    @test y4 ≈ y1 rtol = 1e-2
+
   end
 
 end
