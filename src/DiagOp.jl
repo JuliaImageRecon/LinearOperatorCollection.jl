@@ -134,13 +134,18 @@ function diagNormOpProd!(y, normalOps, idx, x)
  return y
 end
 
-function LinearOperatorCollection.normalOperator(diag::DiagOp, W=opEye(eltype(diag), size(diag,1), S = LinearOperators.storage_type(diag)); copyOpsFn = copy, kwargs...)
-  T = promote_type(eltype(diag), eltype(W))
-  S = promote_type(LinearOperators.storage_type(diag), LinearOperators.storage_type(W))
+function LinearOperatorCollection.normalOperator(diag::DiagOp, W=nothing; copyOpsFn = copy, kwargs...)
+  if !isnothing(W)
+    T = promote_type(eltype(diag), eltype(W))
+    S = promote_type(LinearOperators.storage_type(diag), LinearOperators.storage_type(W))
+  else
+    T = eltype(diag)
+    S = LinearOperators.storage_type(diag)
+  end
   isconcretetype(S) || throw(LinearOperatorException("Storage types cannot be promoted to a concrete type"))
   tmp = S(undef, diag.nrow)
   tmp .= one(eltype(diag))
-  weights = W*tmp
+  weights = isnothing(W) ? tmp : W * tmp
 
 
   if diag.equalOps
