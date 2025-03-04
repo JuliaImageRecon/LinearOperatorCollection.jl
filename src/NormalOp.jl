@@ -22,7 +22,7 @@ end
 
 NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights::AbstractVector{T}) where T = NormalOp(T, parent, WeightingOp(weights))
 
-NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights::AbstractLinearOperator{T}; kwargs...) where T = NormalOpImpl(parent, weights)
+NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights; kwargs...) where T = NormalOpImpl(parent, weights)
 
 mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T, S}
   nrow :: Int
@@ -49,6 +49,11 @@ LinearOperators.storage_type(op::NormalOpImpl) = typeof(op.Mv5)
 
 function NormalOpImpl(parent, weights)
   S = promote_storage_types(parent, weights)
+  tmp = S(undef, size(parent, 1))
+  return NormalOpImpl(parent, weights, tmp)
+end
+function NormalOpImpl(parent, weights::Nothing)
+  S = storage_type(parent)
   tmp = S(undef, size(parent, 1))
   return NormalOpImpl(parent, weights, tmp)
 end
