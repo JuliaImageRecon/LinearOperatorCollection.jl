@@ -128,7 +128,7 @@ function NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1::matT, xL2::m
          , shape, W, fftplan, ifftplan, λ, xL1, xL2)
 end
 
-function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=opEye(eltype(nfft), size(nfft, 1), S= LinearOperators.storage_type(nfft)); kwargs...) where {T}
+function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing; kwargs...) where {T}
   shape = nfft.plan.N
 
   tmpVec = similar(nfft.Mv5, (2 .* shape)...)
@@ -147,7 +147,13 @@ function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=opEye(eltype(nfft), size(nfft, 
 		precompute=NFFT.POLYNOMIAL, fftflags=FFTW.ESTIMATE, blocking=true)
   tmpOnes = similar(tmpVec, size(nfft.plan.k, 2))
   tmpOnes .= one(T)
-  eigMat = adjoint(p) * ( W  * tmpOnes)
+  
+  if !isnothing(W)
+    eigMat = adjoint(p) * ( W  * tmpOnes)
+  else
+    eigMat = adjoint(p) * (tmpOnes)
+  end
+
   λ = fftplan * fftshift(eigMat)
 
   xL1 = tmpVec
@@ -156,7 +162,7 @@ function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=opEye(eltype(nfft), size(nfft, 
   return NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1, xL2)
 end
 
-function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W = opEye(eltype(S), size(S, 1), S= LinearOperators.storage_type(S)); copyOpsFn = copy, kwargs...) where T
+function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W = nothing; copyOpsFn = copy, kwargs...) where T
   if S.toeplitz
     return NFFTToeplitzNormalOp(S,W; kwargs...)
   else

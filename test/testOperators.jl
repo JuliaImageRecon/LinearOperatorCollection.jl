@@ -378,7 +378,7 @@ function testDiagOp(N=32,K=2;arrayType = Array)
 
   @testset "Weighted Diag Normal" begin
     w = rand(eltype(op1), size(op1, 1))
-    wop = WeightingOp(w)
+    wop = WeightingOp(arrayType(w))
     prod1 = ProdOp(wop, op1)
     prod2 = ProdOp(wop, op2)
     prod3 = ProdOp(wop, op3)

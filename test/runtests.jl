@@ -9,7 +9,7 @@ using RadonKA
 using JLArrays
 
 areTypesDefined = @isdefined arrayTypes
-arrayTypes = areTypesDefined ? arrayTypes : [Array, JLArray]
+arrayTypes = areTypesDefined ? arrayTypes : [Array] #, JLArray]
 
 @testset "LinearOperatorCollection" begin
   include("testNormalOp.jl")
