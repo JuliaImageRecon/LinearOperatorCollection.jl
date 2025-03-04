@@ -39,7 +39,7 @@ abstract type DCTOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type DSTOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type NFFTOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type SamplingOp{T} <: AbstractLinearOperatorFromCollection{T} end
-abstract type NormalOp{T} <: AbstractLinearOperatorFromCollection{T} end
+abstract type NormalOp{T,S} <: AbstractLinearOperatorFromCollection{T} end
 abstract type GradientOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type RadonOp{T} <: AbstractLinearOperatorFromCollection{T} end
 

@@ -126,7 +126,7 @@ end
 Fuses weights of `ẀeightingOp` by computing `adjoint.(weights) .* weights`
 """
 normalOperator(S::ProdOp{T, <:WeightingOp, matT}; kwargs...) where {T, matT} = normalOperator(S.B, WeightingOp(adjoint.(S.A.weights) .* S.A.weights); kwargs...)
-function normalOperator(S::ProdOp, W=opEye(eltype(S),size(S,1), S = storage_type(S)); kwargs...)
+function normalOperator(S::ProdOp, W=nothing; kwargs...)
   arrayType = storage_type(S)
   tmp = arrayType(undef, size(S.A, 2))
   return ProdNormalOp(S.B, normalOperator(S.A, W; kwargs...), tmp)

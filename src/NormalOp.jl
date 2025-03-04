@@ -16,19 +16,15 @@ Computes `adjoint(parent) * weights * parent`.
   * `weights`                  - Optional weights for normal operator. Must already be of form `weights = adjoint.(w) .* w`
 
 """
-function LinearOperatorCollection.NormalOp(::Type{T}; parent, weights = opEye(eltype(parent), size(parent, 1), S = storage_type(parent))) where T <: Number
+function LinearOperatorCollection.NormalOp(::Type{T}; parent, weights = nothing) where T <: Number
   return NormalOp(T, parent, weights)
 end
 
-function NormalOp(::Type{T}, parent, ::Nothing) where T
-  weights = opEye(eltype(parent), size(parent, 1), S = storage_type(parent))
-  return NormalOp(T, parent, weights)
-end
 NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights::AbstractVector{T}) where T = NormalOp(T, parent, WeightingOp(weights))
 
 NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights::AbstractLinearOperator{T}; kwargs...) where T = NormalOpImpl(parent, weights)
 
-mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T}
+mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T, S}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -63,6 +59,11 @@ function NormalOpImpl(parent, weights, tmp)
     mul!(tmp, weights, tmp) # This can be dangerous. We might need to create two tmp vectors
     return mul!(y, adjoint(parent), tmp)
   end
+  function produ!(y, parent, weights::Nothing, tmp, x)
+    mul!(tmp, parent, x)
+    return mul!(y, adjoint(parent), tmp)
+  end
+
 
   return NormalOpImpl{eltype(parent), typeof(parent), typeof(weights), typeof(tmp)}(size(parent,2), size(parent,2), false, false
          , (res,x) -> produ!(res, parent, weights, tmp, x)
@@ -81,6 +82,6 @@ end
 
   Constructs a normal operator of the parent in an opinionated way, i.e. it tries to apply optimisations to the resulting operator.
 """
-function normalOperator(parent, weights=opEye(eltype(parent), size(parent, 1), S= storage_type(parent)); kwargs...)
+function normalOperator(parent, weights=nothing; kwargs...)
   return NormalOp(eltype(storage_type((parent))); parent = parent, weights = weights)
 end
