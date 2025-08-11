@@ -31,8 +31,8 @@ makedocs(
             "Weighting Operator" => "generated/tutorials/weighting.md",
             "Product Operator" => "generated/tutorials/product.md",
             "Diagonal Operator" => "generated/tutorials/diagonal.md",
-            "Normal Operator" => "generated/tutorials/normal.md",
             "Gradient Operator" => "generated/tutorials/gradient.md",
+            "Normal Operator" => "generated/tutorials/normal.md",
             "FFT Operator" => "generated/tutorials/fft.md",
             "NFFT Operator" => "generated/tutorials/nfft.md",
             "Wavelet Operator" => "generated/tutorials/wavelet.md",
@@ -50,5 +50,4 @@ makedocs(
     warnonly = [:missing_docs]
 )
 
-deploydocs(repo   = "github.com/MagneticParticleImaging/MPIReco.jl.git",
-           target = "build")
+deploydocs(repo   = "github.com/JuliaImageRecon/LinearOperatorCollection.jl")
