@@ -1,5 +1,5 @@
 using Documenter, Literate # Documentation
-using RadonKA, Wavelets, NFFT, FFTW # Extensions
+using LinearOperatorCollection, RadonKA, Wavelets, NFFT, FFTW # Extensions
 using CairoMakie, ImageGeoms, ImagePhantoms # Documentation Example Packages
 
 # Generate examples
