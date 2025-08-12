@@ -4,6 +4,9 @@
 
 [![codecov](https://codecov.io/github/JuliaImageRecon/LinearOperatorCollection.jl/graph/badge.svg?token=MEjup4lqjO)](https://codecov.io/github/JuliaImageRecon/LinearOperatorCollection.jl)
 
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://JuliaImageRecon.github.io/RegularizedLeastSquares.jl/latest)
+
+
 ## Purpose
 
 This package contains a collection of linear operators that are in particular useful for multi-dimensional signal and image processing tasks. All operators are build using the LinearOperators.jl base type and derive from `AbstractLinearOperator`. For example this package
