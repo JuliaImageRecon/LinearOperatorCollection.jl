@@ -1,7 +1,7 @@
 # # Wavelet Operator
 include("../../util.jl") #hide
 # The wavelet operator is available when loading Wavelets.jl together with LinearOperatorCollection:
-using LinearOperatorCollection, Wavelets
+using Wavelets
 wop = WaveletOp(eltype(image), shape = (N, N))
 wavelet_image = reshape(wop * vec(image), N, N)
 fig = Figure()

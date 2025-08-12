@@ -4,15 +4,13 @@ include("../../util.jl") #hide
 # Such an operator is also implemented within LinearOperator.jl, however here this operator has a dedicated type on which one can dispatch:
 weights = collect(range(0, 1, length = N*N))
 op = WeightingOp(weights)
-
-# Such an operator is also implemented within LinearOperator.jl, however here this operator has a dedicated type on which one can dispatch:
 typeof(op)
 
-# And it is possible to retrieve the weights from the operator
+# One can retrieve the weights from the operator
 op.weights == weights
 
 # Note that we didn't need to specify the element type of the operator here. In this case the eltype was derived from the provided weights.
-weighted_image = reshape(op * vec(image), N, N)
+weighted_image = reshape(op * vec(image), N, N);
 
 # To visualize our weighted image, we will again use CairoMakie:
 fig = Figure()

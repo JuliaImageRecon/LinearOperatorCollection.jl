@@ -1,7 +1,7 @@
 # # Radon Operator
 include("../../util.jl") #hide
 # The Radon operator is available when loading RadonKA.jl and LinearOperatorCollection:
-using LinearOperatorCollection, RadonKA
+using RadonKA
 angles = collect(range(0, π, N))
 rop = RadonOp(eltype(image); angles, shape = size(image));
 sinogram = reshape(rop * vec(image), :, N)

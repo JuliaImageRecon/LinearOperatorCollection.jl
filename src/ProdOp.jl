@@ -1,12 +1,4 @@
 export ProdOp
-"""
-    `mutable struct ProdOp{T}`
-
-  struct describing the result of a composition/product of operators.
-  Describing the composition using a dedicated type has the advantage
-  that the latter can be made copyable. This is particularly relevant for
-  multi-threaded code
-"""
 mutable struct ProdOp{T,U,V, vecT <: AbstractVector{T}} <: AbstractLinearOperatorFromCollection{T}
   nrow :: Int
   ncol :: Int
@@ -31,7 +23,7 @@ end
 """
     ProdOp(A,B)
 
-composition/product of two Operators. Differs with * since it can handle normal operator
+composition/product of two Operators. Computes (A * (B * x)). Differs with composition via * since it can handle normal operator and allows for specialisation on `A` and `B`.
 """
 function ProdOp(A, B)
   nrow = size(A, 1)

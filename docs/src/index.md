@@ -3,7 +3,7 @@
 *Collection of linear operators for multi-dimensional signal and imaging tasks*
 
 
-## Purpose
+## Introduction
 
 This package contains a collection of linear operators that are particularly useful for multi-dimensional signal and image processing tasks. Linear operators or linear maps behave like matrices in a matrix-vector product, but aren't necessarily matrices themselves. They can utilize more effective algorithms and can defer their computation until they are multiplied with a vector.
 

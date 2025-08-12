@@ -12,7 +12,7 @@ image_sine = reshape(sop * vec(image), N, N)
 
 fig = Figure()
 plot_image(fig[1,1], image, title = "Image")
-plot_image(fig[1,2], abs.(weighted_frequencies) .+ eps(), title = "Frequency Domain", colorscale = log10)
+plot_image(fig[1,2], abs.(image_frequencies) .+ eps(), title = "Frequency Domain", colorscale = log10)
 plot_image(fig[1,3], image_cosine, title = "Cosine")
 plot_image(fig[1,4], image_sine, title = "Sine")
 resize_to_layout!(fig)

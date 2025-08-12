@@ -9,7 +9,7 @@ dop = DiagOp(ops)
 typeof(dop)
 
 # We can retrieve the operators:
-dop.ops
+typeof(dop.ops)
 
 # And visualize the result:
 fig = Figure()

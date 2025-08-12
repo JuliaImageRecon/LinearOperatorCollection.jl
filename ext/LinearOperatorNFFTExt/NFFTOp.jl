@@ -1,4 +1,15 @@
+"""
+    NFFTOpImpl(shape::Tuple, tr::Trajectory; kargs...)
+    NFFTOpImpl(shape::Tuple, tr::AbstractMatrix; kargs...)
 
+generates a `NFFTOpImpl` which evaluates the MRI Fourier signal encoding operator using the NFFT.
+
+# Arguments:
+* `shape::NTuple{D,Int64}`  - size of image to encode/reconstruct
+* `tr`                      - Either a `Trajectory` object, or a `ND x Nsamples` matrix for an ND-dimenensional (e.g. 2D or 3D) NFFT with `Nsamples` k-space samples
+* (`nodes=nothing`)         - Array containg the trajectory nodes (redundant)
+* (`kargs`)                 - additional keyword arguments
+"""
 function LinearOperatorCollection.NFFTOp(::Type{T};
     shape::Tuple, nodes::AbstractMatrix{U}, toeplitz=false, oversamplingFactor=1.25, 
    kernelSize=3, kargs...) where {U <: Number, T <: Number}
@@ -27,18 +38,6 @@ end
 
 LinearOperators.storage_type(op::NFFTOpImpl) = typeof(op.Mv5)
 
-"""
-    NFFTOpImpl(shape::Tuple, tr::Trajectory; kargs...)
-    NFFTOpImpl(shape::Tuple, tr::AbstractMatrix; kargs...)
-
-generates a `NFFTOpImpl` which evaluates the MRI Fourier signal encoding operator using the NFFT.
-
-# Arguments:
-* `shape::NTuple{D,Int64}`  - size of image to encode/reconstruct
-* `tr`                      - Either a `Trajectory` object, or a `ND x Nsamples` matrix for an ND-dimenensional (e.g. 2D or 3D) NFFT with `Nsamples` k-space samples
-* (`nodes=nothing`)         - Array containg the trajectory nodes (redundant)
-* (`kargs`)                 - additional keyword arguments
-"""
 function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz=false, oversamplingFactor=1.25, kernelSize=3, S = Vector{Complex{T}}, kargs...) where {T}
 
   baseArrayType = Base.typename(S).wrapper # https://github.com/JuliaLang/julia/issues/35543

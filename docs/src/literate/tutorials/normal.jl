@@ -8,6 +8,7 @@ include("../../util.jl") #hide
 # \end{equation}
 # ```
 # for some operator $\mathbf{A}$:
+using FFTW
 fop = op = FFTOp(ComplexF32, shape = (N, N))
 nop = NormalOp(eltype(fop), parent = fop)
 isapprox(nop * vec(image), vec(image))
@@ -17,7 +18,7 @@ typeof(nop.parent)
 
 # LinearOperatorCollection also provides an opinionated `normalOperator` function which tries to optimize the resulting normal operator.
 # As an example consider the normal operator of a weighted fourier operator:
-weights = collect(range(0, 1, length = N*N))
+weights = Float32.(collect(range(0, 1, length = N*N)))
 wop = WeightingOp(weights)
 pop = ProdOp(wop, fop)
 nop = normalOperator(pop)
