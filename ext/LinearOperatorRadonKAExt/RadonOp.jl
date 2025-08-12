@@ -1,3 +1,16 @@
+"""
+    RadonOp(::Type{T}; shape::NTuple{N, Int}, angles, geometry = RadonParallelCircle(shape[1], -(shape[1]-1)÷2:(shape[1]-1)÷2), μ = nothing, S = Vector{T}) where {T, N}
+
+Generates a `RadonOp` which evaluates the Radon transform operator and its adjoint (backprojection) for a given geometry and projection angles.
+
+# Arguments:
+* `T`                       - element type for the operator (e.g., `Float64`, `ComplexF32`)
+* `shape::NTuple{N, Int}`   - size of the image
+* `angles`                  - array of projection angles
+* `geometry`                - Radon geometry descriptor (default: parallel beam circle)
+* `μ`                       - optional attenuation map (for attenuated Radon transform)
+* `S`                       - storage type for internal vectors (default: `Vector{T}`)
+"""
 function LinearOperatorCollection.RadonOp(::Type{T}; shape::NTuple{N, Int}, angles,
    geometry = RadonParallelCircle(shape[1], -(shape[1]-1)÷2:(shape[1]-1)÷2), μ = nothing, S = Vector{T}) where {T, N}
   return RadonOpImpl(T; shape, angles, geometry, μ, S)
