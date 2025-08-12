@@ -4,7 +4,7 @@
 
 [![codecov](https://codecov.io/github/JuliaImageRecon/LinearOperatorCollection.jl/graph/badge.svg?token=MEjup4lqjO)](https://codecov.io/github/JuliaImageRecon/LinearOperatorCollection.jl)
 
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://JuliaImageRecon.github.io/RegularizedLeastSquares.jl/latest)
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliaimagerecon.github.io/LinearOperatorCollection.jl/dev/)
 
 
 ## Purpose
