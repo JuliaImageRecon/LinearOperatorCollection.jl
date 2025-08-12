@@ -32,7 +32,7 @@ returns a `LinearOperator` which performs a DST on a given input array.
 * `shape::Tuple`  - size of the array to transform
 """
 function LinearOperatorCollection.DSTOp(T::Type; shape::Tuple)
-  tmp=Array{Complex{real(T)}}(undef, shape)
+  tmp=Array{T}(undef, shape)
 
   plan = FFTW.plan_r2r!(tmp,FFTW.RODFT10)
   iplan = FFTW.plan_r2r!(tmp,FFTW.RODFT01)

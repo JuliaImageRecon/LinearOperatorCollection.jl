@@ -34,7 +34,7 @@ returns a `DCTOpImpl <: AbstractLinearOperator` which performs a DCT on a given 
 """
 function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, dcttype=2)
 
-  tmp=Array{Complex{real(T)}}(undef, shape) 
+  tmp=Array{T}(undef, shape) 
   if dcttype == 2
     plan = plan_dct!(tmp)
     iplan = plan_idct!(tmp)
