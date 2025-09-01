@@ -8,7 +8,7 @@ generates a `NFFTOpImpl` which evaluates the MRI Fourier signal encoding operato
 * `shape::NTuple{D,Int64}`  - size of image to encode/reconstruct
 * `tr`                      - Either a `Trajectory` object, or a `ND x Nsamples` matrix for an ND-dimenensional (e.g. 2D or 3D) NFFT with `Nsamples` k-space samples
 * (`nodes=nothing`)         - Array containg the trajectory nodes (redundant)
-* (`kargs`)                 - additional keyword arguments
+* (`kargs`)                 - additional keyword arguments for the NFFT plan
 """
 function LinearOperatorCollection.NFFTOp(::Type{T};
     shape::Tuple, nodes::AbstractMatrix{U}, toeplitz=false, oversamplingFactor=1.25, 
@@ -41,8 +41,8 @@ LinearOperators.storage_type(op::NFFTOpImpl) = typeof(op.Mv5)
 function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz=false, oversamplingFactor=1.25, kernelSize=3, S = Vector{Complex{T}}, kargs...) where {T}
 
   baseArrayType = Base.typename(S).wrapper # https://github.com/JuliaLang/julia/issues/35543
-  plan = plan_nfft(baseArrayType, tr, shape, m=kernelSize, σ=oversamplingFactor, # precompute=AbstractNFFTs.TENSOR,
-		                          fftflags=FFTW.ESTIMATE, blocking=true)
+  plan = plan_nfft(baseArrayType, tr, shape, m=kernelSize, σ=oversamplingFactor,
+		                          fftflags=FFTW.ESTIMATE, blocking=true, kargs...)
 
   return NFFTOpImpl{eltype(S), S, typeof(plan)}(size(tr,2), prod(shape), false, false
             , (res,x) -> produ!(res,plan,x)
