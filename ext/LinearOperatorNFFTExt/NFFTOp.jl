@@ -41,7 +41,7 @@ LinearOperators.storage_type(op::NFFTOpImpl) = typeof(op.Mv5)
 function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz=false, oversamplingFactor=1.25, kernelSize=3, S = Vector{Complex{T}}, kargs...) where {T}
 
   baseArrayType = Base.typename(S).wrapper # https://github.com/JuliaLang/julia/issues/35543
-  plan = plan_nfft(baseArrayType, tr, shape, m=kernelSize, σ=oversamplingFactor, precompute=NFFT.TENSOR,
+  plan = plan_nfft(baseArrayType, tr, shape, m=kernelSize, σ=oversamplingFactor, # precompute=AbstractNFFTs.TENSOR,
 		                          fftflags=FFTW.ESTIMATE, blocking=true)
 
   return NFFTOpImpl{eltype(S), S, typeof(plan)}(size(tr,2), prod(shape), false, false
