@@ -218,7 +218,7 @@ function testNFFT2d(N=16;arrayType = Array)
   # Operator
   xop = arrayType(vec(x))
   nodes = [(idx[d] - N÷2 - 1)./N for d=1:2, idx in vec(CartesianIndices((N,N)))]
-  F_nfft = NFFTOp(ComplexF64; shape=(N,N), nodes, symmetrize=false, S = typeof(xop))
+  F_nfft = NFFTOp(ComplexF64; shape=(N,N), nodes, S = typeof(xop))
 
   # test against FourierOperators
   y = vec( ifftshift(reshape(F*vec(fftshift(x)),N,N)) )
@@ -249,7 +249,7 @@ function testNFFT2d(N=16;arrayType = Array)
   # test type stability;
   # TODO: Ensure type stability for Trajectory objects and test here
   nodes = Float32.(nodes)
-  F_nfft = NFFTOp(ComplexF32; shape=(N,N), nodes, symmetrize=false, S = typeof(ComplexF32.(xop)))
+  F_nfft = NFFTOp(ComplexF32; shape=(N,N), nodes, S = typeof(ComplexF32.(xop)))
 
   y_nfft = F_nfft * ComplexF32.(xop)
   y_adj_nfft = adjoint(F_nfft) * ComplexF32.(xop)
@@ -273,7 +273,7 @@ function testNFFT3d(N=12;arrayType = Array)
   # Operator
   xop = arrayType(vec(x))
   nodes = [(idx[d] - N÷2 - 1)./N for d=1:3, idx in vec(CartesianIndices((N,N,N)))]
-  F_nfft = NFFTOp(ComplexF64; shape=(N,N,N), nodes=nodes, symmetrize=false, S = typeof(xop))
+  F_nfft = NFFTOp(ComplexF64; shape=(N,N,N), nodes=nodes, S = typeof(xop))
 
   # test agains FourierOperators
   y = vec( ifftshift(reshape(F*vec(fftshift(x)),N,N,N)) )
