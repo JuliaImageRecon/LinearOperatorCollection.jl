@@ -56,17 +56,17 @@ function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz, oversamplingF
 end
 
 function produ!(y::AbstractVector, plan::AbstractNFFTPlan, x::AbstractVector) 
-  mul!(y, plan, reshape(x,plan.N))
+  mul!(y, plan, reshape(x,size_in(plan)))
 end
 
 function ctprodu!(x::AbstractVector, plan::AbstractNFFTPlan, y::AbstractVector)
-  mul!(reshape(x, plan.N), adjoint(plan), y)
+  mul!(reshape(x, size_in(plan)), adjoint(plan), y)
 end
 
 
 function Base.copy(S::NFFTOpImpl{T, vecT, P}) where {T, vecT, P}
   plan = copy(S.plan)
-  return NFFTOpImpl{T, vecT, P}(size(plan.k,2), prod(plan.N), false, false
+  return NFFTOpImpl{T, vecT, P}(size(plan.k,2), prod(size_in(plan)), false, false
               , (res,x) -> produ!(res,plan,x)
               , nothing
               , (res,y) -> ctprodu!(res,plan,y)
@@ -131,7 +131,7 @@ function NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1::matT, xL2::m
 end
 
 function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing; kwargs...) where {T}
-  shape = nfft.plan.N
+  shape = size_in(nfft.plan)
 
   tmpVec = similar(nfft.Mv5, (2 .* shape)...)
   tmpVec .= zero(T)
