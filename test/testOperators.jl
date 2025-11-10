@@ -440,9 +440,15 @@ end
     @info "test WaveletOp: $arrayType"
     @testset testWavelet(64,64;arrayType)
     @testset testWavelet(64,60;arrayType)
-    @info "test NFFTOp: $arrayType"
-    arrayType == JLArray || @testset testNFFT2d(;arrayType) # JLArray does not have a NFFTPlan
-    arrayType == JLArray || @testset testNFFT3d(;arrayType) # JLArray does not have a NFFTPlan
+    for backend in [NFFT.backend(), NonuniformFFTs.backend()]
+      @info "test NFFTOp with $(string(typeof(backend))): $arrayType"
+      @testset "NFFTOp with $(string(typeof(backend)))" begin
+        with(nfft_backend => backend) do
+          arrayType == JLArray || @testset testNFFT2d(;arrayType) # JLArray does not have a NFFTPlan
+          arrayType == JLArray || @testset testNFFT3d(;arrayType) # JLArray does not have a NFFTPlan
+        end
+      end
+    end
     @info "test DiagOp: $arrayType"
     @testset testDiagOp(;arrayType)
     @info "test RadonOp: $arrayType"

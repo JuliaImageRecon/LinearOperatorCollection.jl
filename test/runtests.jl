@@ -4,6 +4,7 @@ using Random
 using LinearAlgebra
 using FFTW
 using Wavelets
+using NonuniformFFTs
 using NFFT
 using RadonKA
 using JLArrays
