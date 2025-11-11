@@ -30,19 +30,21 @@ end
 
 export linearOperatorList, createLinearOperator
 export AbstractLinearOperatorFromCollection, WaveletOp, FFTOp, DCTOp, DSTOp, NFFTOp,
-       SamplingOp, NormalOp, WeightingOp, GradientOp, RadonOp
+       SamplingOp, NormalOp, WeightingOp, GradientOp, RadonOp, NFFTToeplitzNormalOp
 
 abstract type AbstractLinearOperatorFromCollection{T} <: AbstractLinearOperator{T} end
 abstract type WaveletOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type FFTOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type DCTOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type DSTOp{T} <: AbstractLinearOperatorFromCollection{T} end
-abstract type NFFTOp{T} <: AbstractLinearOperatorFromCollection{T} end
+abstract type NFFTOp{T, P} <: AbstractLinearOperatorFromCollection{T} end
 abstract type SamplingOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type NormalOp{T,S} <: AbstractLinearOperatorFromCollection{T} end
 abstract type GradientOp{T} <: AbstractLinearOperatorFromCollection{T} end
 abstract type RadonOp{T} <: AbstractLinearOperatorFromCollection{T} end
 
+
+function NFFTToeplitzNormalOp end
 
 """
   returns a list of currently implemented `LinearOperator`s

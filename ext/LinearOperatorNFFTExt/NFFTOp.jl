@@ -19,7 +19,7 @@ function LinearOperatorCollection.NFFTOp(::Type{T};
   return NFFTOpImpl(shape, nodes; toeplitz, oversamplingFactor, kernelSize, kargs... )
 end
 
-mutable struct NFFTOpImpl{T, vecT, P <: AbstractNFFTPlan} <: NFFTOp{T}
+mutable struct NFFTOpImpl{T, vecT, P} <: NFFTOp{T, P}
   nrow :: Int
   ncol :: Int
   symmetric :: Bool
@@ -107,7 +107,7 @@ end
 
 LinearOperators.storage_type(op::NFFTToeplitzNormalOp) = typeof(op.Mv5)
 
-function NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1::matT, xL2::matT) where {T, D, matT <: AbstractArray{T, D}}
+function LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1::matT, xL2::matT) where {T, D, matT <: AbstractArray{T, D}}
 
   function produ!(y, shape, fftplan, ifftplan, λ, xL1, xL2, x)
     xL1 .= 0
@@ -130,7 +130,7 @@ function NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1::matT, xL2::m
          , shape, W, fftplan, ifftplan, λ, xL1, xL2)
 end
 
-function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing; kwargs...) where {T}
+function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing; kwargs...) where {T}
   shape = size_in(nfft.plan)
 
   tmpVec = similar(nfft.Mv5, (2 .* shape)...)
@@ -161,12 +161,12 @@ function NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing; kwargs...) where {T}
   xL1 = tmpVec
   xL2 = similar(xL1)
 
-  return NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1, xL2)
+  return LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1, xL2)
 end
 
 function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W = nothing; copyOpsFn = copy, kwargs...) where T
   if S.toeplitz
-    return NFFTToeplitzNormalOp(S,W; kwargs...)
+    return LinearOperatorCollection.NFFTToeplitzNormalOp(S,W; kwargs...)
   else
     return NormalOp(eltype(S); parent = S, weights = W)
   end
@@ -175,5 +175,5 @@ end
 function Base.copy(A::NFFTToeplitzNormalOp{T,D,W}) where {T,D,W}
   fftplan  = plan_fft( zeros(T, 2 .* A.shape); flags=FFTW.MEASURE)
   ifftplan = plan_ifft(zeros(T, 2 .* A.shape); flags=FFTW.MEASURE)
-  return NFFTToeplitzNormalOp(A.shape, A.weights, fftplan, ifftplan, A.λ, copy(A.xL1), copy(A.xL2))
+  return LinearOperatorCollection.NFFTToeplitzNormalOp(A.shape, A.weights, fftplan, ifftplan, A.λ, copy(A.xL1), copy(A.xL2))
 end
