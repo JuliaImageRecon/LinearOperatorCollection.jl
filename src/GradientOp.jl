@@ -70,7 +70,7 @@ function grad!(res::T, img::U, shape::NTuple{N,Int64}, di::CartesianIndex{N}) wh
 
   res_ = reshape(res, shape .- Tuple(di))
 
-  Threads.@threads for i ∈ CartesianIndices(res_)
+  @tasks for i ∈ CartesianIndices(res_)
     @inbounds res_[i] = img_[i] - img_[i + di]
   end
 end
@@ -92,10 +92,10 @@ function grad_t!(res::T, g::U, shape::NTuple{N,Int64}, di::CartesianIndex{N}) wh
   g_ = reshape(g, shape .- Tuple(di))
 
   res_ .= 0
-  Threads.@threads for i ∈ CartesianIndices(g_)
+  @tasks for i ∈ CartesianIndices(g_)
     @inbounds res_[i]  = g_[i]
   end
-  Threads.@threads for i ∈ CartesianIndices(g_)
+  @tasks for i ∈ CartesianIndices(g_)
     @inbounds res_[i + di] -= g_[i]
   end
 end

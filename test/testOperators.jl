@@ -302,7 +302,7 @@ function testNFFT3d(N=12;arrayType = Array)
   @test y_AHA ≈ y_AHA_nfft_1   rtol = 1e-2
 end
 
-function testDiagOp(N=32,K=2;arrayType = Array)
+function testDiagOp(N=32,K=2;arrayType = Array,scheduler = DynamicScheduler())
   x = arrayType(rand(ComplexF64, K*N))
   block = arrayType(rand(ComplexF64, N, N))
 
@@ -314,10 +314,10 @@ function testDiagOp(N=32,K=2;arrayType = Array)
   end
 
   blocks = [block for k = 1:K]
-  op1 = DiagOp(blocks)
-  op2 = DiagOp(blocks...)
-  op3 = DiagOp(block, K)
-  op4 = DiagOp(@view blocks[1:K])
+  op1 = DiagOp(blocks; scheduler = scheduler)
+  op2 = DiagOp(blocks...; scheduler = scheduler)
+  op3 = DiagOp(block, K; scheduler = scheduler)
+  op4 = DiagOp(@view blocks[1:K]; scheduler = scheduler)
 
 
   # Operations
@@ -450,7 +450,9 @@ end
       end
     end
     @info "test DiagOp: $arrayType"
-    @testset testDiagOp(;arrayType)
+    for scheduler in [DynamicScheduler(), StaticScheduler(), SerialScheduler()]
+      @testset testDiagOp(;arrayType, scheduler = scheduler)
+    end
     @info "test RadonOp: $arrayType"
     arrayType == JLArray || @testset testRadonOp(;arrayType) # Stackoverflow for kernelabstraction
   end

@@ -17,3 +17,10 @@ plot_image(fig[1,1], image, title = "Image")
 plot_image(fig[1,2], reshape(dop * vec(image), N, N), title = "Block Weighted")
 resize_to_layout!(fig)
 fig
+
+# The default operator is created with a DynamicScheduler from OhMyThreads.jl. This means it will execute the multiplication of its
+# individual blocks in parallel. To supply a different scheduler do:
+using OhMyThreads
+scheduler = SerialScheduler()
+dop_serial = DiagOp(ops, scheduler = scheduler)
+typeof(dop_serial)

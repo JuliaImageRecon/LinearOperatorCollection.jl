@@ -12,6 +12,7 @@ import LinearOperators: storage_type
 
 using Reexport
 @reexport using LinearOperators
+using OhMyThreads
 
 LinearOperators.use_prod5!(op::opEye) = false
 LinearOperators.has_args5(op::opEye) = false

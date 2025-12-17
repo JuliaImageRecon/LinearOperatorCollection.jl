@@ -1,4 +1,5 @@
 using LinearOperatorCollection
+using LinearOperatorCollection.OhMyThreads
 using Test
 using Random
 using LinearAlgebra
