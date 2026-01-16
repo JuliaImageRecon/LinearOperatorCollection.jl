@@ -60,13 +60,13 @@ function weights(s, T::Type)
   return reshape(w,prod(s))
 end
 
-function dst_multiply!(res::Vector{T}, plan::P, x::Vector{T}, tmp::Array{T,D}, weights::Vector{T}) where {T,P,D}
+function dst_multiply!(res::AbstractVector{T}, plan::P, x::AbstractVector{T}, tmp::AbstractArray{T,D}, weights::AbstractVector{T}) where {T,P,D}
   tmp[:] .= x
   plan * tmp
   res .= vec(tmp).*weights
 end
 
-function dst_bmultiply!(res::Vector{T}, plan::P, x::Vector{T}, tmp::Array{T,D}, weights::Vector{T}) where {T,P,D}
+function dst_bmultiply!(res::AbstractVector{T}, plan::P, x::AbstractVector{T}, tmp::AbstractArray{T,D}, weights::AbstractVector{T}) where {T,P,D}
   tmp[:] .= x./weights
   plan * tmp
   res[:] .= vec(tmp)./(8*length(tmp))

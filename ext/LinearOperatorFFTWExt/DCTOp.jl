@@ -56,13 +56,13 @@ function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, dcttype=2)
                       plan, dcttype)
 end
 
-function dct_multiply2(res::Vector{T}, plan::P, x::Vector{T}, tmp::Array{T,D}) where {T,P,D}
+function dct_multiply2(res::AbstractVector{T}, plan::P, x::AbstractVector{T}, tmp::AbstractArray{T,D}) where {T,P,D}
   tmp[:] .= x
   plan * tmp
   res .= vec(tmp)
 end
 
-function dct_multiply4(res::Vector{T}, plan::P, x::Vector{T}, tmp::Array{T,D}, factor::T) where {T,P,D}
+function dct_multiply4(res::AbstractVector{T}, plan::P, x::AbstractVector{T}, tmp::AbstractArray{T,D}, factor::T) where {T,P,D}
   tmp[:] .= x
   plan * tmp
   res .= factor.*vec(tmp)
