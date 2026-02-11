@@ -32,9 +32,9 @@ returns a `DCTOpImpl <: AbstractLinearOperator` which performs a DCT on a given 
 * `shape::Tuple`  - size of the array to transform
 * `dcttype`       - type of DCT (currently `2` and `4` are supported)
 """
-function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, dcttype=2)
+function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, S = Array{T}, dcttype=2)
 
-  tmp=Array{T}(undef, shape) 
+  tmp=similar(S(undef, 0), shape...)
   if dcttype == 2
     plan = plan_dct!(tmp)
     iplan = plan_idct!(tmp)
