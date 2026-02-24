@@ -14,8 +14,6 @@ using Reexport
 @reexport using LinearOperators
 using OhMyThreads
 
-LinearOperators.use_prod5!(op::opEye) = false
-LinearOperators.has_args5(op::opEye) = false
 
 # Helper function to wrap a prod into a 5-args mul
 function wrapProd(prod::Function)
