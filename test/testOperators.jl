@@ -444,8 +444,8 @@ end
       @info "test NFFTOp with $(string(typeof(backend))): $arrayType"
       @testset "NFFTOp with $(string(typeof(backend)))" begin
         with(nfft_backend => backend) do
-          arrayType == JLArray || @testset testNFFT2d(;arrayType) # JLArray does not have a NFFTPlan
-          arrayType == JLArray || @testset testNFFT3d(;arrayType) # JLArray does not have a NFFTPlan
+          @testset testNFFT2d(;arrayType) # JLArray does not have a NFFTPlan
+          @testset testNFFT3d(;arrayType) # JLArray does not have a NFFTPlan
         end
       end
     end
@@ -454,6 +454,6 @@ end
       @testset testDiagOp(;arrayType, scheduler = scheduler)
     end
     @info "test RadonOp: $arrayType"
-    arrayType == JLArray || @testset testRadonOp(;arrayType) # Stackoverflow for kernelabstraction
+    @testset testRadonOp(;arrayType) # Stackoverflow for kernelabstraction
   end
 end
