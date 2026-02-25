@@ -62,10 +62,6 @@ function Base.copy(S::ProdOp{T}) where T
   return ProdOp(A,B)
 end
 
-Base.:*(::Type{<:ProdOp}, A, B) = ProdOp(A, B)
-Base.:*(::Type{<:ProdOp}, A, args...) = ProdOp(A, *(ProdOp, args...))
-Base.:∘(A::AbstractLinearOperator, B::AbstractLinearOperator) = ProdOp(A, B)
-
 storage_type(op::ProdOp) = typeof(op.Mv5)
 
 mutable struct ProdNormalOp{T,S,U,V <: AbstractVector{T}} <: AbstractLinearOperator{T}
