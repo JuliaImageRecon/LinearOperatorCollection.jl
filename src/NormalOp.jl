@@ -24,28 +24,25 @@ NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights::AbstractVector{T})
 
 NormalOp(::Union{Type{T}, Type{Complex{T}}}, parent, weights; kwargs...) where T = NormalOpImpl(parent, weights)
 
-mutable struct NormalOpImpl{T,S,D,V} <: NormalOp{T, S}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Nothing
-  ctprod! :: Nothing
+mutable struct NormalOpImpl{T,vecT,S,D} <: NormalOp{T, S}
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Nothing
+  const ctprod! :: Nothing
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: V
-  Mtu5 :: V
-  parent::S
-  weights::D
-  tmp::V
+  Mv :: vecT
+  Mtu :: vecT
+  const parent::S
+  const weights::D
+  tmp::vecT
 end
 
-LinearOperators.storage_type(op::NormalOpImpl) = typeof(op.Mv5)
+LinearOperators.storage_type(::NormalOpImpl{T, vecT}) where {T,vecT} = vecT
 
 function NormalOpImpl(parent, weights)
   S = promote_storage_types(parent, weights)
@@ -70,11 +67,11 @@ function NormalOpImpl(parent, weights, tmp)
   end
 
 
-  return NormalOpImpl{eltype(parent), typeof(parent), typeof(weights), typeof(tmp)}(size(parent,2), size(parent,2), false, false
+  return NormalOpImpl{eltype(parent), typeof(tmp), typeof(parent), typeof(weights)}(size(parent,2), size(parent,2), false, false
          , (res,x) -> produ!(res, parent, weights, tmp, x)
          , nothing
          , nothing
-         , 0, 0, 0, true, false, true, similar(tmp, 0), similar(tmp, 0)
+         , 0, 0, 0, similar(tmp, 0), similar(tmp, 0)
          , parent, weights, tmp)
 end
 
