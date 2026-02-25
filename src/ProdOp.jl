@@ -1,22 +1,19 @@
 export ProdOp
 mutable struct ProdOp{T,U,V, vecT <: AbstractVector{T}} <: AbstractLinearOperatorFromCollection{T}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Function
-  ctprod! :: Function
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Function
+  const ctprod! :: Function
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: vecT
-  Mtu5 :: vecT
-  A::U
-  B::V
+  Mv :: vecT
+  Mtu :: vecT
+  const A::U
+  const B::V
   tmp::vecT
 end
 
@@ -50,11 +47,15 @@ function ProdOp(A, B)
                      (res,x) -> produ!(res,x,tmp_),
                      (res,y) -> tprodu!(res,y,tmp_),
                      (res,y) -> ctprodu!(res,y,tmp_), 
-                     0, 0, 0, false, false, false, similar(tmp_, 0), similar(tmp_, 0),
+                     0, 0, 0, similar(tmp_, 0), similar(tmp_, 0),
                      A, B, tmp_)
 
   return Op
 end
+
+Base.:∘(A, B::AbstractLinearOperatorFromCollection) = ProdOp(A, B)
+Base.:∘(A::AbstractLinearOperatorFromCollection, B) = ProdOp(A, B)
+Base.:∘(A::AbstractLinearOperatorFromCollection, B::AbstractLinearOperatorFromCollection) = ProdOp(A, B)
 
 function Base.copy(S::ProdOp{T}) where T
   A = copy(S.A)
@@ -62,7 +63,7 @@ function Base.copy(S::ProdOp{T}) where T
   return ProdOp(A,B)
 end
 
-storage_type(op::ProdOp) = typeof(op.Mv5)
+storage_type(::ProdOp{T,U,V,vecT}) where {T,U,V,vecT} = vecT
 
 mutable struct ProdNormalOp{T,S,U,V <: AbstractVector{T}} <: AbstractLinearOperator{T}
   nrow :: Int

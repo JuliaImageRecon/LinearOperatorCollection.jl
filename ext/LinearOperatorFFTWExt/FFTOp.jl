@@ -1,28 +1,25 @@
 export FFTOpImpl
 
 mutable struct FFTOpImpl{T, vecT, P <: AbstractFFTs.Plan{T}, IP <: AbstractFFTs.Plan{T}} <: FFTOp{T}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Nothing
-  ctprod! :: Function
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Nothing
+  const ctprod! :: Function
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: vecT
-  Mtu5 :: vecT
-  plan :: P
-  iplan :: IP
-  shift::Bool
-  unitary::Bool
+  Mv :: vecT
+  Mtu :: vecT
+  const plan :: P
+  const iplan :: IP
+  const shift::Bool
+  const unitary::Bool
 end
 
-LinearOperators.storage_type(op::FFTOpImpl) = typeof(op.Mv5)
+LinearOperators.storage_type(::FFTOpImpl{T, vecT}) where {T,vecT} = vecT
 
 """
   FFTOp(T::Type; shape::Tuple, shift=true, unitary=true)
@@ -60,7 +57,7 @@ function LinearOperatorCollection.FFTOp(T::Type; shape::NTuple{D,Int64}, shift::
 
     return FFTOpImpl(prod(shape), prod(shape), false, false, (res, x) -> fun!(res, plan_, x, shape_, facF_, tmpVec_),
         nothing, (res, x) -> fun!(res, iplan_, x, shape_, facB_, tmpVec_),
-        0, 0, 0, true, false, true, similar(tmpVec, 0), similar(tmpVec, 0), plan, iplan, shift, unitary)
+        0, 0, 0, similar(tmpVec, 0), similar(tmpVec, 0), plan, iplan, shift, unitary)
   end
 end
 

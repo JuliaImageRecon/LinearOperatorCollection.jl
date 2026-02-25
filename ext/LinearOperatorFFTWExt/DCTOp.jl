@@ -1,26 +1,23 @@
 export DCTOpImpl
 
-mutable struct DCTOpImpl{T} <: DCTOp{T}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Nothing
-  ctprod! :: Function
+mutable struct DCTOpImpl{T, vecT, P} <: DCTOp{T}
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Nothing
+  const ctprod! :: Function
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: Vector{T}
-  Mtu5 :: Vector{T}
-  plan
-  dcttype::Int
+  Mv :: vecT
+  Mtu :: vecT
+  const plan :: P
+  const dcttype::Int
 end
 
-LinearOperators.storage_type(op::DCTOpImpl) = typeof(op.Mv5)
+LinearOperators.storage_type(::DCTOpImpl{T, vecT}) where {T,vecT} = vecT
 
 """
   DCTOpImpl(T::Type, shape::Tuple, dcttype=2)
@@ -50,9 +47,9 @@ function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, S = Array{T}, dct
     error("DCT type $(dcttype) not supported")
   end
 
-  return DCTOpImpl{T}(prod(shape), prod(shape), false, false,
+  return DCTOpImpl{T, S, typeof(plan)}(prod(shape), prod(shape), false, false,
                       prod!, nothing, tprod!,
-                      0, 0, 0, true, false, true, T[], T[],
+                      0, 0, 0, S(undef, 0), S(undef, 0),
                       plan, dcttype)
 end
 

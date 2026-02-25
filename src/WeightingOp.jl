@@ -7,7 +7,7 @@ generates a `LinearOperator` which multiplies an input vector index-wise with `w
 * `weights::Vector{T}` - weights vector
 * `rep::Int=1`         - number of sub-arrays that need to be multiplied with `weights`
 """
-mutable struct WeightingOp{T, vecT <: AbstractVector{T}} <: AbstractLinearOperatorFromCollection{T}
+struct WeightingOp{T, vecT <: AbstractVector{T}} <: AbstractLinearOperatorFromCollection{T}
   op::LinearOperator{T}
   weights::vecT
   function WeightingOp(weights::vecT, rep::Int=1) where {T <: Number, vecT<:AbstractVector{T}}
@@ -26,4 +26,4 @@ function Base.getproperty(wop::WeightingOp, field::Symbol)
 end
 Base.setproperty!(wop::WeightingOp, field::Symbol, value) = setproperty!(wop.op, field, value)
 
-storage_type(wop::WeightingOp) = storage_type(wop.op)
+storage_type(::WeightingOp{T, vecT}) where {T, vecT} = vecT

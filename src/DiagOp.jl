@@ -1,30 +1,27 @@
 export DiagOp
 
 mutable struct DiagOp{T, vecT, vecO, S} <: AbstractLinearOperator{T}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Function
-  ctprod! :: Function
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Function
+  const ctprod! :: Function
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: vecT
-  Mtu5 :: vecT
-  ops :: vecO
+  Mv :: vecT
+  Mtu :: vecT
+  const ops :: vecO
   equalOps :: Bool
-  xIdx :: Vector{Int64}
-  yIdx :: Vector{Int64}
-  scheduler::S
+  const xIdx :: Vector{Int64}
+  const yIdx :: Vector{Int64}
+  const scheduler::S
 end
 
 
-LinearOperators.storage_type(op::DiagOp) = typeof(op.Mv5)
+LinearOperators.storage_type(::DiagOp{T, vecT}) where {T, vecT} = vecT
 
 
 
@@ -54,7 +51,7 @@ function DiagOp(ops; scheduler = DynamicScheduler())
                      (res,x) -> (diagOpProd(res,x,nrow,xIdx,yIdx,ops,scheduler)),
                      (res,y) -> (diagOpTProd(res,y,ncol,yIdx,xIdx,ops,scheduler)),
                      (res,y) -> (diagOpCTProd(res,y,ncol,yIdx,xIdx,ops,scheduler)),
-                     0, 0, 0, false, false, false, S(undef, 0), S(undef, 0),
+                     0, 0, 0, S(undef, 0), S(undef, 0),
                      ops, false, xIdx, yIdx, scheduler)
 
   return Op
@@ -95,28 +92,25 @@ end
 ### Normal Matrix Code ###
 
 mutable struct DiagNormalOp{T,vecT,V,S} <: AbstractLinearOperator{T}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Nothing
-  ctprod! :: Nothing
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Nothing
+  const ctprod! :: Nothing
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: vecT
-  Mtu5 :: vecT
+  Mv :: vecT
+  Mtu :: vecT
   normalOps::V
   idx::Vector{Int64}
   y::vecT
   scheduler::S
 end
 
-LinearOperators.storage_type(op::DiagNormalOp) = typeof(op.Mv5)
+LinearOperators.storage_type(::DiagNormalOp{T, vecT}) where {T, vecT} = vecT
 
 function DiagNormalOp(normalOps, N, idx, y::AbstractVector{T}, scheduler = DynamicScheduler()) where {T}
 
@@ -129,7 +123,7 @@ function DiagNormalOp(normalOps, N, idx, y::AbstractVector{T}, scheduler = Dynam
          , (res,x) -> diagNormOpProd!(res, normalOps, idx, x, scheduler)
          , nothing
          , nothing
-         , 0, 0, 0, false, false, false, S(undef, 0), S(undef, 0)
+         , 0, 0, 0, S(undef, 0), S(undef, 0)
          , normalOps, idx, y, scheduler)
 end
 

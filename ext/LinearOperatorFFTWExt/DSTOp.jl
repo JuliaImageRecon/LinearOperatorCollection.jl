@@ -1,26 +1,23 @@
 export DSTOpImpl
 
-mutable struct DSTOpImpl{T} <: DSTOp{T}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Nothing
-  ctprod! :: Function
+mutable struct DSTOpImpl{T, vecT, P, IP} <: DSTOp{T}
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Nothing
+  const ctprod! :: Function
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: Vector{T}
-  Mtu5 :: Vector{T}
-  plan
-  iplan
+  Mv :: vecT
+  Mtu :: vecT
+  const plan :: P
+  const iplan :: IP
 end
 
-LinearOperators.storage_type(op::DSTOpImpl) = typeof(op.Mv5)
+LinearOperators.storage_type(::DSTOpImpl{T, vecT}) where {T, vecT} = vecT
 
 """
   DSTOp(T::Type, shape::Tuple)
@@ -39,11 +36,11 @@ function LinearOperatorCollection.DSTOp(T::Type; shape::Tuple, S = Array{T})
 
   w = weights(shape, T)
 
-  return DSTOpImpl{T}(prod(shape), prod(shape), true, false
+  return DSTOpImpl{T, S, typeof(plan), typeof(iplan)}(prod(shape), prod(shape), true, false
             , (res,x) -> dst_multiply!(res,plan,x,tmp,w)
             , nothing
             , (res,x) -> dst_bmultiply!(res,iplan,x,tmp,w)
-            , 0, 0, 0, true, false, true, T[], T[]
+            , 0, 0, 0, S(undef,0), S(undef, 0)
             , plan
             , iplan)
 end

@@ -17,27 +17,24 @@ function LinearOperatorCollection.RadonOp(::Type{T}; shape::NTuple{N, Int}, angl
 end
 
 mutable struct RadonOpImpl{T, vecT <: AbstractVector{T}, vecT2, G, A} <: RadonOp{T}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Nothing
-  ctprod! :: Function
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Nothing
+  const ctprod! :: Function
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: vecT
-  Mtu5 :: vecT
-  angles :: vecT2
-  geometry :: G
-  μ :: A
+  Mv :: vecT
+  Mtu :: vecT
+  const angles :: vecT2
+  const geometry :: G
+  const μ :: A
 end
 
-LinearOperators.storage_type(op::RadonOpImpl) = typeof(op.Mv5)
+LinearOperators.storage_type(::RadonOpImpl{T, vecT}) where {T, vecT} = vecT
 
 function RadonOpImpl(T::Type; shape::NTuple{N, Int64}, angles, geometry, μ, S) where N
   N_sinogram = length(geometry.in_height)
@@ -49,7 +46,7 @@ function RadonOpImpl(T::Type; shape::NTuple{N, Int64}, angles, geometry, μ, S) 
   (res, x) -> prod_radon!(res, x, shape, angles, geometry, μ),
   nothing, 
   (res, x) -> ctprod_radon!(res, x, (N_sinogram, N_angles, d), angles, geometry, μ),
-  0, 0, 0, true, false, true, S(undef, 0), S(undef, 0), angles, geometry, μ)
+  0, 0, 0, S(undef, 0), S(undef, 0), angles, geometry, μ)
 end
 
 prod_radon!(res::vecT, x::vecT, shape, angles::vecT2, geometry::G, μ::A) where {vecT, vecT2, G, A} = copyto!(res, radon(reshape(x, shape), angles; geometry, μ))
