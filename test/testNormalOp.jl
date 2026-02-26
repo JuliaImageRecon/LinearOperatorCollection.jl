@@ -28,6 +28,12 @@
         y = Array(normalOperator(A)*x)
 
         @test norm(y1 - y) / norm(y) ≈ 0 atol=0.01
+
+        B = arrayType(rand(elType, N, N))
+        AB = A * B
+        WAB = diagm(W.weights)*A*B
+        @test isapprox(normalOperator(ProdOp(A, B)) * x, adjoint(AB) * AB * x)
+        @test isapprox(normalOperator(ProdOp(ProdOp(W, A), B)) * x, adjoint(WAB) * WAB * x)
       end
     end
   end

@@ -65,28 +65,25 @@ end
 
 storage_type(::ProdOp{T,U,V,vecT}) where {T,U,V,vecT} = vecT
 
-mutable struct ProdNormalOp{T,S,U,V <: AbstractVector{T}} <: AbstractLinearOperator{T}
-  nrow :: Int
-  ncol :: Int
-  symmetric :: Bool
-  hermitian :: Bool
-  prod! :: Function
-  tprod! :: Nothing
-  ctprod! :: Nothing
+mutable struct ProdNormalOp{T, vecT <: AbstractVector{T}, S, U} <: AbstractLinearOperator{T}
+  const nrow :: Int
+  const ncol :: Int
+  const symmetric :: Bool
+  const hermitian :: Bool
+  const prod! :: Function
+  const tprod! :: Nothing
+  const ctprod! :: Nothing
   nprod :: Int
   ntprod :: Int
   nctprod :: Int
-  args5 :: Bool
-  use_prod5! :: Bool
-  allocated5 :: Bool
-  Mv5 :: V
-  Mtu5 :: V
-  opOuter::S
-  normalOpInner::U
-  tmp::V
+  Mv :: vecT
+  Mtu :: vecT
+  const opOuter::S
+  const normalOpInner::U
+  tmp::vecT
 end
 
-storage_type(op::ProdNormalOp) = typeof(op.Mv5)
+storage_type(::ProdNormalOp{T, vecT}) where {T, vecT} = vecT
 
 
 function ProdNormalOp(opOuter, normalOpInner, tmp)
@@ -101,7 +98,7 @@ function ProdNormalOp(opOuter, normalOpInner, tmp)
          , (res,x) -> produ!(res, opOuter, normalOpInner, tmp, x)
          , nothing
          , nothing
-         , 0, 0, 0, false, false, false, similar(tmp, 0), similar(tmp, 0)
+         , 0, 0, 0, similar(tmp, 0), similar(tmp, 0)
          , opOuter, normalOpInner, tmp)
 end
 
@@ -112,7 +109,7 @@ end
 """
     normalOperator(prod::ProdOp{T, <:WeightingOp, matT}; kwargs...)
 
-Fuses weights of `ẀeightingOp` by computing `adjoint.(weights) .* weights`
+Fuses weights of `WeightingOp` by computing `adjoint.(weights) .* weights`
 """
 normalOperator(S::ProdOp{T, <:WeightingOp, matT}; kwargs...) where {T, matT} = normalOperator(S.B, WeightingOp(adjoint.(S.A.weights) .* S.A.weights); kwargs...)
 function normalOperator(S::ProdOp, W=nothing; kwargs...)
