@@ -28,7 +28,7 @@ returns a `LinearOperator` which performs a DST on a given input array.
 * `T::Type`       - type of the array to transform
 * `shape::Tuple`  - size of the array to transform
 """
-function LinearOperatorCollection.DSTOp(T::Type; shape::Tuple, S = Array{T})
+function LinearOperatorCollection.DSTOp(T::Type; shape::Tuple, S = Vector{T})
   tmp=similar(S(undef, 0), shape...)
 
   plan = FFTW.plan_r2r!(tmp,FFTW.RODFT10)
