@@ -101,7 +101,7 @@ end
 
 LinearOperators.storage_type(::NFFTToeplitzNormalOp{T, vecT}) where {T, vecT} = vecT
 
-function LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1::matT, xL2::matT) where {T, D, matT <: AbstractArray{T, D}}
+function LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1::matT, xL2::matT, S = Vector{T}) where {T, D, matT <: AbstractArray{T, D}}
 
   function produ!(y, shape, fftplan, ifftplan, λ, xL1, xL2, x)
     xL1 .= 0
@@ -120,12 +120,12 @@ function LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftpl
          , (res,x) -> produ!(res, shape, fftplan, ifftplan, λ, xL1, xL2, x)
          , nothing
          , nothing
-         , 0, 0, 0, T[], T[]
+         , 0, 0, 0, S(undef, 0), S(undef, 0)
          , shape, W, fftplan, ifftplan, λ, xL1, xL2)
 end
 
 # TODO: use vecT for toeplitz op
-function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing; kwargs...) where {T}
+function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing; S = LinearOperators.storage_type(nfft), kwargs...) where {T}
   shape = size_in(nfft.plan)
 
   tmpVec = similar(nfft.Mv, (2 .* shape)...)
@@ -156,7 +156,7 @@ function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothin
   xL1 = tmpVec
   xL2 = similar(xL1)
 
-  return LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1, xL2)
+  return LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1, xL2, S)
 end
 
 function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W = nothing; copyOpsFn = copy, kwargs...) where T
