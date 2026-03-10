@@ -29,7 +29,7 @@ returns a `DCTOpImpl <: AbstractLinearOperator` which performs a DCT on a given 
 * `shape::Tuple`  - size of the array to transform
 * `dcttype`       - type of DCT (currently `2` and `4` are supported)
 """
-function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, S = Array{T}, dcttype=2)
+function LinearOperatorCollection.DCTOp(T::Type; shape::Tuple, S = Vector{T}, dcttype=2)
 
   tmp=similar(S(undef, 0), shape...)
   if dcttype == 2
