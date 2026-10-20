@@ -27,3 +27,7 @@ end
 Base.setproperty!(wop::WeightingOp, field::Symbol, value) = setproperty!(wop.op, field, value)
 
 storage_type(::WeightingOp{T, vecT}) where {T, vecT} = vecT
+
+function Adapt.adapt_structure(to, op::WeightingOp)
+  return WeightingOp(Adapt.adapt(to, op.weights), 1)
+end

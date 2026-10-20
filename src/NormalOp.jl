@@ -87,3 +87,9 @@ end
 function normalOperator(parent, weights=nothing; kwargs...)
   return NormalOp(eltype(storage_type((parent))); parent = parent, weights = weights)
 end
+
+function Adapt.adapt_structure(to, op::NormalOpImpl)
+  parent = Adapt.adapt(to, op.parent)
+  weights = Adapt.adapt(to, op.weights)
+  return NormalOpImpl(parent, weights)
+end

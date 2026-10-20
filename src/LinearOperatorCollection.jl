@@ -109,7 +109,6 @@ include("GradientOp.jl")
 include("SamplingOp.jl")
 include("NormalOp.jl")
 include("DiagOp.jl")
-include("adapt.jl")
 
 function promote_storage_types(A, B)
   A_type = storage_type(A)
