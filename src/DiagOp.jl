@@ -66,7 +66,7 @@ function DiagOp(op::Union{AbstractLinearOperator{T}, AbstractArray{T}}, N::Int64
 end
 
 function Adapt.adapt_structure(to, op::DiagOp)
-  adapted = DiagOp([Adapt.adapt(to, child) for child in op.ops]; scheduler = op.scheduler)
+  adapted = DiagOp(map(child -> Adapt.adapt(to, child), op.ops); scheduler = op.scheduler)
   adapted.equalOps = op.equalOps
   return adapted
 end
@@ -131,6 +131,12 @@ function DiagNormalOp(normalOps, N, idx, y::AbstractVector{T}, scheduler = Dynam
          , nothing
          , 0, 0, 0, S(undef, 0), S(undef, 0)
          , normalOps, idx, y, scheduler)
+end
+
+function Adapt.adapt_structure(to, op::DiagNormalOp)
+  normalOps = map(child -> Adapt.adapt(to, child), op.normalOps)
+  y = Adapt.adapt(to, op.y)
+  return DiagNormalOp(normalOps, op.nrow, op.idx, y, op.scheduler)
 end
 
 function diagNormOpProd!(y, normalOps, idx, x, scheduler = DynamicScheduler())

@@ -65,6 +65,7 @@ end
 
 storage_type(::ProdOp{T,U,V,vecT}) where {T,U,V,vecT} = vecT
 
+# Adapt fallback leaves types without a specialized rule unchanged.
 function Adapt.adapt_structure(to, op::ProdOp)
   return ProdOp(Adapt.adapt(to, op.A), Adapt.adapt(to, op.B))
 end
@@ -104,6 +105,13 @@ function ProdNormalOp(opOuter, normalOpInner, tmp)
          , nothing
          , 0, 0, 0, similar(tmp, 0), similar(tmp, 0)
          , opOuter, normalOpInner, tmp)
+end
+
+function Adapt.adapt_structure(to, op::ProdNormalOp)
+  opOuter = Adapt.adapt(to, op.opOuter)
+  normalOpInner = Adapt.adapt(to, op.normalOpInner)
+  tmp = Adapt.adapt(to, op.tmp)
+  return ProdNormalOp(opOuter, normalOpInner, tmp)
 end
 
 
