@@ -65,6 +65,12 @@ function DiagOp(op::Union{AbstractLinearOperator{T}, AbstractArray{T}}, N::Int64
   return op
 end
 
+function Adapt.adapt_structure(to, op::DiagOp)
+  adapted = DiagOp([Adapt.adapt(to, child) for child in op.ops]; scheduler = op.scheduler)
+  adapted.equalOps = op.equalOps
+  return adapted
+end
+
 function diagOpProd(y::AbstractVector{T}, x::AbstractVector{T}, nrow::Int, xIdx, yIdx, ops, scheduler = DynamicScheduler()) where T
   @tasks for i=1:length(ops)
     @set scheduler = scheduler

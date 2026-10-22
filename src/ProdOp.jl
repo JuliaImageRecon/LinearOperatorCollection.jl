@@ -65,6 +65,10 @@ end
 
 storage_type(::ProdOp{T,U,V,vecT}) where {T,U,V,vecT} = vecT
 
+function Adapt.adapt_structure(to, op::ProdOp)
+  return ProdOp(Adapt.adapt(to, op.A), Adapt.adapt(to, op.B))
+end
+
 mutable struct ProdNormalOp{T, vecT <: AbstractVector{T}, S, U} <: AbstractLinearOperator{T}
   const nrow :: Int
   const ncol :: Int

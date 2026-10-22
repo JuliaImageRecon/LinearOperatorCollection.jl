@@ -6,6 +6,7 @@ using LinearAlgebra: BlasFloat, normalize!, norm, rmul!, lmul!
 using SparseArrays
 using Random
 using InteractiveUtils
+import Adapt
 
 import Base: *, ∘, copy, getproperty, setproperty!
 import LinearOperators: storage_type
