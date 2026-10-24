@@ -1,6 +1,7 @@
 module LinearOperatorNonuniformFFTsExt
 
 using LinearOperatorCollection, AbstractNFFTs, NonuniformFFTs, NonuniformFFTs.Kernels, FFTW
+using Adapt
 
 function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T, P}, W=nothing; S = LinearOperators.storage_type(nfft), kwargs...) where {T, P <: NonuniformFFTs.NFFTPlan}
   shape = size_in(nfft.plan)
@@ -34,7 +35,8 @@ function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T, P}, W=not
     eigMat = adjoint(p) * (tmpOnes)
   end
 
-  λ = fftplan * fftshift(eigMat)
+  λ = similar(tmpVec)
+  λ .= fftplan * fftshift(eigMat)
 
   xL1 = tmpVec
   xL2 = similar(xL1)
