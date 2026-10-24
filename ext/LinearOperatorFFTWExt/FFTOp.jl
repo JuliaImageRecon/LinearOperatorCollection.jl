@@ -33,6 +33,10 @@ returns an operator which performs an FFT on Arrays of type T
 * (`unitary=true`)  - if true, FFT is normalized such that it is unitary
 * (`S = Vector{T}`) - type of temporary vector, change to use on GPU
 * (`kwargs...`) - keyword arguments given to fft plan
+
+`Adapt.adapt(target, op)` preserves the shape, shift, and normalization
+convention, and rebuilds the plans, workspaces, and closures for `target`.
+Planner options are intentionally reset to the constructor defaults.
 """
 function LinearOperatorCollection.FFTOp(T::Type; shape::NTuple{D,Int64}, shift::Bool=true, unitary::Bool=true, S = Vector{Complex{real(T)}}, kwargs...) where D
   
@@ -59,6 +63,22 @@ function LinearOperatorCollection.FFTOp(T::Type; shape::NTuple{D,Int64}, shift::
         nothing, (res, x) -> fun!(res, iplan_, x, shape_, facB_, tmpVec_),
         0, 0, 0, similar(tmpVec, 0), similar(tmpVec, 0), plan, iplan, shift, unitary)
   end
+end
+
+function _adapt_target_storage(to, storage, operator_name)
+  target_storage = Adapt.adapt(to, storage)
+  supported = to isa Type ? (!isabstracttype(to) && typeof(target_storage) <: to) :
+                             target_storage !== storage
+  supported && target_storage isa AbstractArray || throw(ArgumentError(
+    "unsupported Adapt target $(to) for $(operator_name): " *
+    "Adapt.adapt returned $(typeof(target_storage))"))
+  target_storage
+end
+
+function Adapt.adapt_structure(to, op::FFTOpImpl)
+  target_storage = _adapt_target_storage(to, op.Mv, "FFTOp")
+  return FFTOp(eltype(op); shape=size(op.plan), shift=op.shift,
+               unitary=op.unitary, S=typeof(target_storage))
 end
 
 function fft_multiply!(res::AbstractVector{T}, plan::P, x::AbstractVector{Tr}, ::NTuple{D}, factor::T, tmpVec::AbstractArray{T,D}) where {T, Tr, P<:AbstractFFTs.Plan, D}
