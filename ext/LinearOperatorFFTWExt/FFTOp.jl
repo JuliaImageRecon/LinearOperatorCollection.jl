@@ -65,8 +65,17 @@ function LinearOperatorCollection.FFTOp(T::Type; shape::NTuple{D,Int64}, shift::
   end
 end
 
+function _adapt_target_storage(to, storage, operator_name)
+  target_storage = Adapt.adapt(to, storage)
+  supported = to isa Type ? typeof(target_storage) <: to : target_storage !== storage
+  supported && target_storage isa AbstractArray || throw(ArgumentError(
+    "unsupported Adapt target $(to) for $(operator_name): " *
+    "Adapt.adapt returned $(typeof(target_storage))"))
+  target_storage
+end
+
 function Adapt.adapt_structure(to, op::FFTOpImpl)
-  target_storage = Adapt.adapt(to, op.Mv)
+  target_storage = _adapt_target_storage(to, op.Mv, "FFTOp")
   return FFTOp(eltype(op); shape=size(op.plan), shift=op.shift,
                unitary=op.unitary, S=typeof(target_storage))
 end

@@ -57,9 +57,8 @@ custom_point_transform(x::Tuple) = map(custom_point_transform, x)
 @testset "Adapt reconstruction" begin
   N = 16
 
-  # CPU tests use JLArray; GPU jobs add their configured target without
-  # repeating an Array target already supplied by runtests.jl.
-  for array_type in unique([JLArray; filter(T -> T != Array, arrayTypes)])
+  # Exercise both CPU storage types; GPU jobs add their configured target.
+  for array_type in unique(vcat([Array, JLArray], arrayTypes))
     @testset "target storage $(array_type)" begin
       @testset "WeightingOp" begin
         weights = rand(Float32, N)
@@ -295,6 +294,7 @@ custom_point_transform(x::Tuple) = map(custom_point_transform, x)
         @test lossy_replay.Ñ != source_grid
         @test adapted.plan.Ñ == source_grid
         @test adapted.plan !== source.plan
+        @test typeof(adapted.Mv) <: array_type
         @test typeof(adapted.plan.tmpVec) <: array_type
         @test source.plan.k == source_nodes
 
@@ -326,6 +326,7 @@ custom_point_transform(x::Tuple) = map(custom_point_transform, x)
           @test !is_nfft_jl_plan(adapted.plan)
           @test size(first(adapted.plan.p.data.us)) == source_grid
           @test adapted.plan !== source.plan
+          @test typeof(adapted.Mv) <: array_type
           @test typeof(adapted.plan.p.data.us[1]) <: array_type
 
           x = randn(ComplexF32, 12 * 16)
@@ -389,7 +390,7 @@ custom_point_transform(x::Tuple) = map(custom_point_transform, x)
   @testset "NonuniformFFTs custom point_transform is retained" begin
     nodes = Float64.(0.8 .* rand(2, 20) .- 0.4)
     source = with(nfft_backend => NonuniformFFTs.backend()) do
-      NFFTOp(ComplexF64; shape=(12, 16), nodes, kernelSize=2,
+      NFFTOp(ComplexF64; shape=(12, 16), nodes, kernelSize=2, fftshift=false,
              oversamplingFactor=1.25, point_transform=custom_point_transform,
              S=Vector{ComplexF64})
     end
@@ -397,13 +398,33 @@ custom_point_transform(x::Tuple) = map(custom_point_transform, x)
       Adapt.adapt(Array, source)
     end
     x = randn(ComplexF64, 12 * 16)
+    y = randn(ComplexF64, 20)
     @test is_nonuniform_plan(adapted.plan)
     @test Array(adapted * x) ≈ source * x rtol=1f-10 atol=1f-10
+    @test Array(adjoint(adapted) * y) ≈ adjoint(source) * y rtol=1f-10 atol=1f-10
     ordinary = with(nfft_backend => NonuniformFFTs.backend()) do
       NFFTOp(ComplexF64; shape=(12, 16), nodes=nodes, kernelSize=2,
-             oversamplingFactor=1.25, S=Vector{ComplexF64})
+             oversamplingFactor=1.25, fftshift=false, S=Vector{ComplexF64})
     end
-    @test !isapprox(adapted * x, ordinary * x;
+    @test !isapprox(Array(adapted * x), Array(ordinary * x);
       rtol=1f-2, atol=1f-5)
   end
+end
+
+struct UnsupportedAdaptTarget end
+
+@testset "Unsupported Adapt targets fail explicitly" begin
+  fft = FFTOp(ComplexF32; shape=(6, 8), S=Vector{ComplexF32})
+  nfft = with(nfft_backend => NFFT.backend()) do
+    NFFTOp(ComplexF32; shape=(8, 8), nodes=Float32.(0.8 .* rand(2, 20) .- 0.4),
+           kernelSize=2, oversamplingFactor=1.5, toeplitz=true,
+           S=Vector{ComplexF32})
+  end
+  toeplitz = with(nfft_backend => NFFT.backend()) do
+    normalOperator(nfft)
+  end
+
+  @test_throws ArgumentError Adapt.adapt(UnsupportedAdaptTarget, fft)
+  @test_throws ArgumentError Adapt.adapt(UnsupportedAdaptTarget, nfft)
+  @test_throws ArgumentError Adapt.adapt(UnsupportedAdaptTarget, toeplitz)
 end

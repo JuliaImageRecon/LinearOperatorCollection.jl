@@ -204,8 +204,17 @@ function _rebuild_nfft_plan(to, plan::AbstractNFFTs.AbstractNFFTPlan, targetArra
   end
 end
 
+function _adapt_target_storage(to, storage, operator_name)
+  target_storage = Adapt.adapt(to, storage)
+  supported = to isa Type ? typeof(target_storage) <: to : target_storage !== storage
+  supported && target_storage isa AbstractArray || throw(ArgumentError(
+    "unsupported Adapt target $(to) for $(operator_name): " *
+    "Adapt.adapt returned $(typeof(target_storage))"))
+  target_storage
+end
+
 function Adapt.adapt_structure(to, op::NFFTOpImpl)
-  target_storage = Adapt.adapt(to, op.Mv)
+  target_storage = _adapt_target_storage(to, op.Mv, "NFFTOp")
   targetArrayType = Base.typename(typeof(target_storage)).wrapper
   plan = _rebuild_nfft_plan(to, op.plan, targetArrayType)
   S = typeof(target_storage)
@@ -307,8 +316,8 @@ function _adapt_copy(to, value)
 end
 
 function Adapt.adapt_structure(to, op::NFFTToeplitzNormalOp)
-  target_storage = Adapt.adapt(to, op.Mv)
-  adapted_workspace = Adapt.adapt(to, op.xL1)
+  target_storage = _adapt_target_storage(to, op.Mv, "NFFTToeplitzNormalOp")
+  adapted_workspace = _adapt_target_storage(to, op.xL1, "NFFTToeplitzNormalOp")
   xL1 = similar(adapted_workspace, size(op.xL1))
   xL2 = similar(xL1)
   λ = _adapt_copy(to, op.λ)
