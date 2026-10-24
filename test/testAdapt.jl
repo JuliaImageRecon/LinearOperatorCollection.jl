@@ -424,7 +424,9 @@ struct UnsupportedAdaptTarget end
     normalOperator(nfft)
   end
 
-  @test_throws ArgumentError Adapt.adapt(UnsupportedAdaptTarget, fft)
-  @test_throws ArgumentError Adapt.adapt(UnsupportedAdaptTarget, nfft)
-  @test_throws ArgumentError Adapt.adapt(UnsupportedAdaptTarget, toeplitz)
+  for target in (UnsupportedAdaptTarget, AbstractVector)
+    @test_throws ArgumentError Adapt.adapt(target, fft)
+    @test_throws ArgumentError Adapt.adapt(target, nfft)
+    @test_throws ArgumentError Adapt.adapt(target, toeplitz)
+  end
 end

@@ -206,7 +206,8 @@ end
 
 function _adapt_target_storage(to, storage, operator_name)
   target_storage = Adapt.adapt(to, storage)
-  supported = to isa Type ? typeof(target_storage) <: to : target_storage !== storage
+  supported = to isa Type ? (!isabstracttype(to) && typeof(target_storage) <: to) :
+                             target_storage !== storage
   supported && target_storage isa AbstractArray || throw(ArgumentError(
     "unsupported Adapt target $(to) for $(operator_name): " *
     "Adapt.adapt returned $(typeof(target_storage))"))
