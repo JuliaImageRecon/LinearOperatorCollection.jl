@@ -75,18 +75,8 @@ function LinearOperatorCollection.FFTOp(T::Type; shape::NTuple{D,Int64}, shift::
   end
 end
 
-function _adapt_target_storage(to, storage, operator_name)
-  target_storage = Adapt.adapt(to, storage)
-  supported = to isa Type ? (!isabstracttype(to) && typeof(target_storage) <: to) :
-                             target_storage !== storage
-  supported && target_storage isa AbstractArray || throw(ArgumentError(
-    "unsupported Adapt target $(to) for $(operator_name): " *
-    "Adapt.adapt returned $(typeof(target_storage))"))
-  target_storage
-end
-
 function Adapt.adapt_structure(to, op::FFTOpImpl)
-  target_storage = _adapt_target_storage(to, op.Mv, "FFTOp")
+  target_storage = LinearOperatorCollection._adapt_target_storage(to, op.Mv, "FFTOp")
   op.plan_kwargs === nothing && throw(ArgumentError(
     "cannot adapt FFTOp constructed with cache=false: FFT plan kwargs were not retained"))
   return FFTOp(eltype(op); shape=size(op.plan), shift=op.shift,
@@ -109,5 +99,5 @@ end
 
 function Base.copy(S::FFTOpImpl)
   return FFTOp(eltype(S); shape=size(S.plan), shift=S.shift, unitary=S.unitary,
-               S = LinearOperators.storage_type(S)) # TODO loses kwargs...
+               S = LinearOperators.storage_type(S), cache=!isnothing(S.plan_kwargs))
 end

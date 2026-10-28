@@ -12,8 +12,10 @@ generates a `NFFTOpImpl` which evaluates the MRI Fourier signal encoding operato
 * `kernelSize=3`
 * `precompute = AbstractNFFTs.TENSOR` Precompute flag for the NFFT backend
 * (`kargs`)                 - additional keyword arguments for the NFFT plan
-* (`cache=true`)            - cache the plan-constructor arguments for
-  `Adapt.adapt`; set to `false` to opt out of that reconstruction support
+* (`cache=true`)            - cache a defensive copy of the node matrix and
+  plan-constructor arguments for `Adapt.adapt`; this uses additional memory.
+  Set to `false` to avoid that retained state and opt out of reconstruction
+  support
 
 `Adapt.adapt(target, op)` preserves the node geometry, NFFT backend, plan
 settings, and `toeplitz`; it replays the cached constructor arguments with
@@ -62,7 +64,7 @@ function _adapt_nfft_plan_value(to, value)
   adapted = Adapt.adapt(to, value)
   adapted isa AbstractArray || throw(ArgumentError(
     "cannot adapt cached NFFT plan argument of type $(typeof(value)) to $(to)"))
-  _copy_nfft_plan_value(adapted)
+  adapted === value ? _copy_nfft_plan_value(adapted) : adapted
 end
 
 function _nfft_plan_cache(backend, tr, shape, plan_kwargs, cache)
@@ -82,7 +84,7 @@ function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz, oversamplingF
                     S = Vector{Complex{T}}, cache::Bool=true, kargs...) where {T}
 
   baseArrayType = Base.typename(S).wrapper # https://github.com/JuliaLang/julia/issues/35543
-  backend = AbstractNFFTs.nfft_backend[][]
+  backend = AbstractNFFTs.active_backend()
   plan_kwargs = merge((m=kernelSize, σ=oversamplingFactor,
                        fftflags=FFTW.ESTIMATE, blocking=true), (; kargs...))
   plan = plan_nfft(backend, baseArrayType, tr, shape; plan_kwargs...)
@@ -96,18 +98,8 @@ function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz, oversamplingF
             , plan, toeplitz, plan_args)
 end
 
-function _adapt_target_storage(to, storage, operator_name)
-  target_storage = Adapt.adapt(to, storage)
-  supported = to isa Type ? (!isabstracttype(to) && typeof(target_storage) <: to) :
-                             target_storage !== storage
-  supported && target_storage isa AbstractArray || throw(ArgumentError(
-    "unsupported Adapt target $(to) for $(operator_name): " *
-    "Adapt.adapt returned $(typeof(target_storage))"))
-  target_storage
-end
-
 function Adapt.adapt_structure(to, op::NFFTOpImpl)
-  target_storage = _adapt_target_storage(to, op.Mv, "NFFTOp")
+  target_storage = LinearOperatorCollection._adapt_target_storage(to, op.Mv, "NFFTOp")
   op.plan_args === nothing && throw(ArgumentError(
     "cannot adapt NFFTOp constructed with cache=false: plan arguments were not retained"))
   source_args = op.plan_args
@@ -243,7 +235,7 @@ function _adapt_copy(to, value)
 end
 
 function Adapt.adapt_structure(to, op::NFFTToeplitzNormalOp)
-  target_storage = _adapt_target_storage(to, op.Mv, "NFFTToeplitzNormalOp")
+  target_storage = LinearOperatorCollection._adapt_target_storage(to, op.Mv, "NFFTToeplitzNormalOp")
   op.plan_kwargs === nothing && throw(ArgumentError(
     "cannot adapt NFFTToeplitzNormalOp constructed with cache=false: " *
     "FFT plan kwargs were not retained"))

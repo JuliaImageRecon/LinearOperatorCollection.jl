@@ -471,6 +471,9 @@ end
 @testset "Plan constructor caching can be disabled explicitly" begin
   uncached_fft = FFTOp(ComplexF32; shape=(6, 8), S=Vector{ComplexF32}, cache=false)
   @test_throws ArgumentError Adapt.adapt(Array, uncached_fft)
+  uncached_fft_copy = copy(uncached_fft)
+  @test uncached_fft_copy.plan_kwargs === nothing
+  @test_throws ArgumentError Adapt.adapt(Array, uncached_fft_copy)
 
   uncached_nfft = with(nfft_backend => NFFT.backend()) do
     NFFTOp(ComplexF32; shape=(8, 8),
