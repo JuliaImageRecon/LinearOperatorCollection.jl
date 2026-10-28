@@ -234,7 +234,7 @@ end
 
 function _adapt_copy(to, value)
   adapted = Adapt.adapt(to, value)
-  if adapted isa AbstractArray
+  if adapted === value && adapted isa AbstractArray
     copied = similar(adapted)
     copyto!(copied, adapted)
     return copied
@@ -244,11 +244,10 @@ end
 
 function Adapt.adapt_structure(to, op::NFFTToeplitzNormalOp)
   target_storage = _adapt_target_storage(to, op.Mv, "NFFTToeplitzNormalOp")
-  adapted_workspace = _adapt_target_storage(to, op.xL1, "NFFTToeplitzNormalOp")
   op.plan_kwargs === nothing && throw(ArgumentError(
     "cannot adapt NFFTToeplitzNormalOp constructed with cache=false: " *
     "FFT plan kwargs were not retained"))
-  xL1 = similar(adapted_workspace, size(op.xL1))
+  xL1 = similar(target_storage, size(op.xL1))
   xL2 = similar(xL1)
   λ = _adapt_copy(to, op.λ)
   fft_kwargs = op.plan_kwargs[:fft_kwargs]

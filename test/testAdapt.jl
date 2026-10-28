@@ -269,6 +269,21 @@ custom_point_transform(x::Tuple) = map(custom_point_transform, x)
         end
       end
 
+      @testset "FFTOp replays cached planner kwargs" begin
+        if array_type === Array
+          source = FFTOp(ComplexF32; shape=(6, 8), flags=FFTW.MEASURE,
+                         S=Vector{ComplexF32})
+          adapted = Adapt.adapt(Array, source)
+
+          @test source.plan_kwargs[:flags] == FFTW.MEASURE
+          @test adapted.plan_kwargs[:flags] == FFTW.MEASURE
+          @test source.plan.flags == FFTW.MEASURE
+          @test adapted.plan.flags == FFTW.MEASURE
+          @test adapted.plan_kwargs == source.plan_kwargs
+          @test adapted.plan !== source.plan
+        end
+      end
+
       @testset "NFFT plan family and exact grid survive Adapt" begin
         nodes = Float32.(0.8 .* rand(2, 20) .- 0.4)
         source = with(nfft_backend => NFFT.backend()) do
@@ -383,6 +398,28 @@ custom_point_transform(x::Tuple) = map(custom_point_transform, x)
         @test Array(adapted_weights.λ) == source_weighted.λ
         @test Array(adapted_weights * array_type(x)) ≈ source_weighted * x rtol=1f-2 atol=2f-4
         @test Array(constructed_weights * array_type(x)) ≈ source_weighted * x rtol=1f-2 atol=2f-4
+      end
+
+      @testset "Toeplitz replays cached FFT planner kwargs" begin
+        if array_type === Array
+          nodes = Float32.(0.8 .* rand(2, 20) .- 0.4)
+          source = with(nfft_backend => NFFT.backend()) do
+            NFFTOp(ComplexF32; shape=(8, 8), nodes, kernelSize=2,
+                   oversamplingFactor=1.5, toeplitz=true,
+                   S=Vector{ComplexF32})
+          end
+          source_normal = with(nfft_backend => NFFT.backend()) do
+            normalOperator(source; flags=FFTW.MEASURE)
+          end
+          adapted = Adapt.adapt(Array, source_normal)
+
+          @test source_normal.plan_kwargs[:fft_kwargs][:flags] == FFTW.MEASURE
+          @test adapted.plan_kwargs[:fft_kwargs][:flags] == FFTW.MEASURE
+          @test source_normal.fftplan.flags == FFTW.MEASURE
+          @test adapted.fftplan.flags == FFTW.MEASURE
+          @test adapted.plan_kwargs == source_normal.plan_kwargs
+          @test adapted.fftplan !== source_normal.fftplan
+        end
       end
     end
   end

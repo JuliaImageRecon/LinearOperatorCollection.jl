@@ -108,10 +108,6 @@ end
 
 
 function Base.copy(S::FFTOpImpl)
-  if S.plan_kwargs === nothing
-    return FFTOp(eltype(S); shape=size(S.plan), shift=S.shift, unitary=S.unitary,
-                 S=LinearOperators.storage_type(S), cache=false)
-  end
   return FFTOp(eltype(S); shape=size(S.plan), shift=S.shift, unitary=S.unitary,
-               S=LinearOperators.storage_type(S), cache=true, S.plan_kwargs...)
+               S = LinearOperators.storage_type(S)) # TODO loses kwargs...
 end
