@@ -430,3 +430,24 @@ struct UnsupportedAdaptTarget end
     @test_throws ArgumentError Adapt.adapt(target, toeplitz)
   end
 end
+
+@testset "Plan constructor caching can be disabled explicitly" begin
+  uncached_fft = FFTOp(ComplexF32; shape=(6, 8), S=Vector{ComplexF32}, cache=false)
+  @test_throws ArgumentError Adapt.adapt(Array, uncached_fft)
+
+  uncached_nfft = with(nfft_backend => NFFT.backend()) do
+    NFFTOp(ComplexF32; shape=(8, 8),
+           nodes=Float32.(0.8 .* rand(2, 20) .- 0.4),
+           kernelSize=2, oversamplingFactor=1.5, cache=false,
+           S=Vector{ComplexF32})
+  end
+  @test_throws ArgumentError Adapt.adapt(Array, uncached_nfft)
+
+  uncached_toeplitz = with(nfft_backend => NFFT.backend()) do
+    normalOperator(NFFTOp(ComplexF32; shape=(8, 8),
+                          nodes=Float32.(0.8 .* rand(2, 20) .- 0.4),
+                          kernelSize=2, oversamplingFactor=1.5,
+                          toeplitz=true, S=Vector{ComplexF32}); cache=false)
+  end
+  @test_throws ArgumentError Adapt.adapt(Array, uncached_toeplitz)
+end
