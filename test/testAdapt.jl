@@ -45,12 +45,20 @@ function check_normal_children(op, snapshot)
   @test all(normal_op.weights.weights == expected for (normal_op, expected) in zip(op.normalOps, snapshot.weights))
 end
 
+is_nfft_jl_plan(plan) = hasproperty(plan, :N) && hasproperty(plan, :Ñ) &&
+                         hasproperty(plan, :params) && hasproperty(plan, :k)
+is_nonuniform_plan(plan) = hasproperty(plan, :p) && hasproperty(plan.p, :kernels)
+
+function custom_point_transform(x::AbstractFloat)
+  NonuniformFFTs._transform_point_convention(x) + oftype(x, 0.2)
+end
+custom_point_transform(x::Tuple) = map(custom_point_transform, x)
+
 @testset "Adapt reconstruction" begin
   N = 16
 
-  # CPU tests use JLArray; GPU jobs add their configured target without
-  # repeating an Array target already supplied by runtests.jl.
-  for array_type in unique([JLArray; filter(T -> T != Array, arrayTypes)])
+  # Exercise both CPU storage types; GPU jobs add their configured target.
+  for array_type in unique(vcat([Array, JLArray], arrayTypes))
     @testset "target storage $(array_type)" begin
       @testset "WeightingOp" begin
         weights = rand(Float32, N)
@@ -222,6 +230,264 @@ end
         check_adapted_mul(source, adapted, x, array_type)
         check_adapted_mul(source_normal, adapted_normal, x, array_type)
       end
+
+      @testset "FFTOp rebuilds plans and preserves action" begin
+        for shift in (false, true), unitary in (false, true)
+          source = FFTOp(ComplexF32; shape=(6, 8), shift, unitary,
+                         S=Vector{ComplexF32})
+          source_plan = source.plan
+          adapted = Adapt.adapt(array_type, source)
+
+          @test adapted !== source
+          @test adapted.plan !== source_plan
+          @test adapted.prod! !== source.prod!
+          @test adapted.Mv !== source.Mv
+          @test typeof(adapted.Mv) <: array_type
+          @test size(adapted.plan) == size(source_plan) == (6, 8)
+          @test adapted.shift == source.shift
+          @test adapted.unitary == source.unitary
+
+          x = randn(ComplexF32, 48)
+          y = randn(ComplexF32, 48)
+          forward = Array(adapted * array_type(x))
+          adjoint_result = Array(adjoint(adapted) * array_type(y))
+          @test forward ≈ source * x rtol=1f-4 atol=1f-5
+          @test adjoint_result ≈ adjoint(source) * y rtol=1f-4 atol=1f-5
+
+          if shift && unitary
+            compound = DiagOp((source, source))
+            compound_adapted = Adapt.adapt(array_type, compound)
+            @test all(typeof(child.Mv) <: array_type for child in compound_adapted.ops)
+            @test all(child.plan !== source.plan for child in compound_adapted.ops)
+            z = randn(ComplexF32, 96)
+            @test Array(compound_adapted * array_type(z)) ≈ compound * z rtol=1f-4 atol=1f-5
+
+            round_trip = Adapt.adapt(Array, adapted)
+            @test round_trip !== adapted
+            @test Array(round_trip * x) ≈ source * x rtol=1f-4 atol=1f-5
+          end
+        end
+      end
+
+      @testset "FFTOp replays cached planner kwargs" begin
+        if array_type === Array
+          source = FFTOp(ComplexF32; shape=(6, 8), flags=FFTW.MEASURE,
+                         S=Vector{ComplexF32})
+          adapted = Adapt.adapt(Array, source)
+
+          @test source.plan_kwargs[:flags] == FFTW.MEASURE
+          @test adapted.plan_kwargs[:flags] == FFTW.MEASURE
+          @test source.plan.flags == FFTW.MEASURE
+          @test adapted.plan.flags == FFTW.MEASURE
+          @test adapted.plan_kwargs == source.plan_kwargs
+          @test adapted.plan !== source.plan
+        end
+      end
+
+      @testset "NFFT plan family and exact grid survive Adapt" begin
+        nodes = Float32.(0.8 .* rand(2, 20) .- 0.4)
+        source = with(nfft_backend => NFFT.backend()) do
+          NFFTOp(ComplexF32; shape=(12, 16), nodes, kernelSize=2,
+                 oversamplingFactor=1.25, S=Vector{ComplexF32})
+        end
+        source_nodes = copy(source.plan.k)
+        source_grid = source.plan.Ñ
+        lossy_replay = plan_nfft(NFFT.backend(), Array, source.plan.k,
+          source.plan.N; m=source.plan.params.m, σ=source.plan.params.σ,
+          window=source.plan.params.window, fftflags=FFTW.ESTIMATE)
+
+        # Deliberately adapt under the other active backend: reconstruction
+        # must use the source plan's algorithm family, not ambient state.
+        opposite_backend = NonuniformFFTs.backend()
+        adapted = with(nfft_backend => opposite_backend) do
+          Adapt.adapt(array_type, source)
+        end
+
+        @test is_nfft_jl_plan(adapted.plan)
+        @test !is_nonuniform_plan(adapted.plan)
+        @test source_grid == (14, 20)
+        @test lossy_replay.Ñ != source_grid
+        @test adapted.plan.Ñ == source_grid
+        @test adapted.plan !== source.plan
+        @test typeof(adapted.Mv) <: array_type
+        @test typeof(adapted.plan.tmpVec) <: array_type
+        @test source.plan.k == source_nodes
+
+        x = randn(ComplexF32, 12 * 16)
+        y = randn(ComplexF32, 20)
+        forward = Array(adapted * array_type(x))
+        adjoint_result = Array(adjoint(adapted) * array_type(y))
+        @test forward ≈ source * x rtol=1f-2 atol=2f-4
+        @test adjoint_result ≈ adjoint(source) * y rtol=1f-2 atol=2f-4
+      end
+
+      @testset "NonuniformFFTs plan rebuild" begin
+        if array_type === JLArray
+          # Upstream NonuniformFFTs/AcceleratedKernels does not implement
+          # this CPU pseudo-GPU scan kernel; keep this one explicit exclusion.
+          @test_skip false
+        else
+          nodes = Float32.(0.8 .* rand(2, 20) .- 0.4)
+          source = with(nfft_backend => NonuniformFFTs.backend()) do
+            NFFTOp(ComplexF32; shape=(12, 16), nodes, kernelSize=2,
+                   oversamplingFactor=1.25, S=Vector{ComplexF32})
+          end
+          source_grid = size(first(source.plan.p.data.us))
+          adapted = with(nfft_backend => NFFT.backend()) do
+            Adapt.adapt(array_type, source)
+          end
+
+          @test is_nonuniform_plan(adapted.plan)
+          @test !is_nfft_jl_plan(adapted.plan)
+          @test size(first(adapted.plan.p.data.us)) == source_grid
+          @test adapted.plan !== source.plan
+          @test typeof(adapted.Mv) <: array_type
+          @test typeof(adapted.plan.p.data.us[1]) <: array_type
+
+          x = randn(ComplexF32, 12 * 16)
+          y = randn(ComplexF32, 20)
+          @test Array(adapted * array_type(x)) ≈ source * x rtol=1f-2 atol=2f-4
+          @test Array(adjoint(adapted) * array_type(y)) ≈ adjoint(source) * y rtol=1f-2 atol=2f-4
+        end
+      end
+
+      @testset "Toeplitz λ and workspaces follow target" begin
+        nodes = Float32.(0.8 .* rand(2, 20) .- 0.4)
+        source = with(nfft_backend => NFFT.backend()) do
+          NFFTOp(ComplexF32; shape=(8, 8), nodes, kernelSize=2,
+                 oversamplingFactor=1.5, toeplitz=true, S=Vector{ComplexF32})
+        end
+        source_normal = with(nfft_backend => NFFT.backend()) do
+          normalOperator(source)
+        end
+        source_normal.xL1 .= randn(ComplexF32, size(source_normal.xL1))
+        source_lambda = copy(source_normal.λ)
+        source_workspace = copy(source_normal.xL1)
+        adapted_source = with(nfft_backend => NonuniformFFTs.backend()) do
+          Adapt.adapt(array_type, source)
+        end
+        adapted_normal = Adapt.adapt(array_type, source_normal)
+        constructed_normal = with(nfft_backend => NFFT.backend()) do
+          normalOperator(adapted_source)
+        end
+
+        @test typeof(adapted_normal.Mv) <: array_type
+        @test typeof(adapted_normal.λ) <: array_type
+        @test typeof(adapted_normal.xL1) <: array_type
+        @test adapted_normal.fftplan !== source_normal.fftplan
+        @test adapted_normal.λ !== source_normal.λ
+        @test adapted_normal.xL1 !== source_normal.xL1
+        @test Array(adapted_normal.λ) == source_lambda
+        @test source_normal.xL1 == source_workspace
+
+        x = randn(ComplexF32, 64)
+        @test Array(adapted_normal * array_type(x)) ≈ source_normal * x rtol=1f-2 atol=2f-4
+        @test Array(constructed_normal * array_type(x)) ≈ source_normal * x rtol=1f-2 atol=2f-4
+
+        weights = WeightingOp(ComplexF32.(1 .+ rand(20)))
+        source_weighted = with(nfft_backend => NFFT.backend()) do
+          normalOperator(source, weights)
+        end
+        adapted_weights = Adapt.adapt(array_type, source_weighted)
+        target_weights = Adapt.adapt(array_type, weights)
+        constructed_weights = with(nfft_backend => NFFT.backend()) do
+          normalOperator(adapted_source, target_weights)
+        end
+        @test typeof(adapted_weights.weights.weights) <: array_type
+        @test typeof(adapted_weights.λ) <: array_type
+        @test Array(adapted_weights.λ) == source_weighted.λ
+        @test Array(adapted_weights * array_type(x)) ≈ source_weighted * x rtol=1f-2 atol=2f-4
+        @test Array(constructed_weights * array_type(x)) ≈ source_weighted * x rtol=1f-2 atol=2f-4
+      end
+
+      @testset "Toeplitz replays cached FFT planner kwargs" begin
+        if array_type === Array
+          nodes = Float32.(0.8 .* rand(2, 20) .- 0.4)
+          source = with(nfft_backend => NFFT.backend()) do
+            NFFTOp(ComplexF32; shape=(8, 8), nodes, kernelSize=2,
+                   oversamplingFactor=1.5, toeplitz=true,
+                   S=Vector{ComplexF32})
+          end
+          source_normal = with(nfft_backend => NFFT.backend()) do
+            normalOperator(source; flags=FFTW.MEASURE)
+          end
+          adapted = Adapt.adapt(Array, source_normal)
+
+          @test source_normal.plan_kwargs[:fft_kwargs][:flags] == FFTW.MEASURE
+          @test adapted.plan_kwargs[:fft_kwargs][:flags] == FFTW.MEASURE
+          @test source_normal.fftplan.flags == FFTW.MEASURE
+          @test adapted.fftplan.flags == FFTW.MEASURE
+          @test adapted.plan_kwargs == source_normal.plan_kwargs
+          @test adapted.fftplan !== source_normal.fftplan
+        end
+      end
     end
   end
+
+  @testset "NonuniformFFTs custom point_transform is retained" begin
+    nodes = Float64.(0.8 .* rand(2, 20) .- 0.4)
+    source = with(nfft_backend => NonuniformFFTs.backend()) do
+      NFFTOp(ComplexF64; shape=(12, 16), nodes, kernelSize=2, fftshift=false,
+             oversamplingFactor=1.25, point_transform=custom_point_transform,
+             S=Vector{ComplexF64})
+    end
+    adapted = with(nfft_backend => NFFT.backend()) do
+      Adapt.adapt(Array, source)
+    end
+    x = randn(ComplexF64, 12 * 16)
+    y = randn(ComplexF64, 20)
+    @test is_nonuniform_plan(adapted.plan)
+    @test Array(adapted * x) ≈ source * x rtol=1f-10 atol=1f-10
+    @test Array(adjoint(adapted) * y) ≈ adjoint(source) * y rtol=1f-10 atol=1f-10
+    ordinary = with(nfft_backend => NonuniformFFTs.backend()) do
+      NFFTOp(ComplexF64; shape=(12, 16), nodes=nodes, kernelSize=2,
+             oversamplingFactor=1.25, fftshift=false, S=Vector{ComplexF64})
+    end
+    @test !isapprox(Array(adapted * x), Array(ordinary * x);
+      rtol=1f-2, atol=1f-5)
+  end
+end
+
+struct UnsupportedAdaptTarget end
+
+@testset "Unsupported Adapt targets fail explicitly" begin
+  fft = FFTOp(ComplexF32; shape=(6, 8), S=Vector{ComplexF32})
+  nfft = with(nfft_backend => NFFT.backend()) do
+    NFFTOp(ComplexF32; shape=(8, 8), nodes=Float32.(0.8 .* rand(2, 20) .- 0.4),
+           kernelSize=2, oversamplingFactor=1.5, toeplitz=true,
+           S=Vector{ComplexF32})
+  end
+  toeplitz = with(nfft_backend => NFFT.backend()) do
+    normalOperator(nfft)
+  end
+
+  for target in (UnsupportedAdaptTarget, AbstractVector)
+    @test_throws ArgumentError Adapt.adapt(target, fft)
+    @test_throws ArgumentError Adapt.adapt(target, nfft)
+    @test_throws ArgumentError Adapt.adapt(target, toeplitz)
+  end
+end
+
+@testset "Plan constructor caching can be disabled explicitly" begin
+  uncached_fft = FFTOp(ComplexF32; shape=(6, 8), S=Vector{ComplexF32}, cache=false)
+  @test_throws ArgumentError Adapt.adapt(Array, uncached_fft)
+  uncached_fft_copy = copy(uncached_fft)
+  @test uncached_fft_copy.plan_kwargs === nothing
+  @test_throws ArgumentError Adapt.adapt(Array, uncached_fft_copy)
+
+  uncached_nfft = with(nfft_backend => NFFT.backend()) do
+    NFFTOp(ComplexF32; shape=(8, 8),
+           nodes=Float32.(0.8 .* rand(2, 20) .- 0.4),
+           kernelSize=2, oversamplingFactor=1.5, cache=false,
+           S=Vector{ComplexF32})
+  end
+  @test_throws ArgumentError Adapt.adapt(Array, uncached_nfft)
+
+  uncached_toeplitz = with(nfft_backend => NFFT.backend()) do
+    normalOperator(NFFTOp(ComplexF32; shape=(8, 8),
+                          nodes=Float32.(0.8 .* rand(2, 20) .- 0.4),
+                          kernelSize=2, oversamplingFactor=1.5,
+                          toeplitz=true, S=Vector{ComplexF32}); cache=false)
+  end
+  @test_throws ArgumentError Adapt.adapt(Array, uncached_toeplitz)
 end

@@ -11,12 +11,22 @@ generates a `NFFTOpImpl` which evaluates the MRI Fourier signal encoding operato
 * `oversamplingFactor=1.25`
 * `kernelSize=3`
 * `precompute = AbstractNFFTs.TENSOR` Precompute flag for the NFFT backend
-* (`kargs`)                 - additional keyword arguments for the NFFT plan, 
+* (`kargs`)                 - additional keyword arguments for the NFFT plan
+* (`cache=true`)            - cache a defensive copy of the node matrix and
+  plan-constructor arguments for `Adapt.adapt`; this uses additional memory.
+  Set to `false` to avoid that retained state and opt out of reconstruction
+  support
+
+`Adapt.adapt(target, op)` preserves the node geometry, NFFT backend, plan
+settings, and `toeplitz`; it replays the cached constructor arguments with
+target-backed nodes and rebuilds plans, workspaces, and closures for the
+target. If `cache=false`, adapting the operator raises an explicit
+`ArgumentError` because the constructor arguments were not retained.
 """
 function LinearOperatorCollection.NFFTOp(::Type{T};
     shape::Tuple, nodes::AbstractMatrix{U}, toeplitz=false, oversamplingFactor=1.25, 
-   kernelSize=3, precompute = AbstractNFFTs.TENSOR, kargs...) where {U <: Number, T <: Number}
-  return NFFTOpImpl(shape, nodes; toeplitz, oversamplingFactor, kernelSize, kargs... )
+   kernelSize=3, precompute = AbstractNFFTs.TENSOR, cache::Bool=true, kargs...) where {U <: Number, T <: Number}
+  return NFFTOpImpl(shape, nodes; toeplitz, oversamplingFactor, kernelSize, cache, kargs... )
 end
 
 mutable struct NFFTOpImpl{T, vecT, P} <: NFFTOp{T, P}
@@ -34,22 +44,86 @@ mutable struct NFFTOpImpl{T, vecT, P} <: NFFTOp{T, P}
   Mtu :: vecT
   const plan :: P
   toeplitz :: Bool
+  # Replay the public plan-constructor arguments during Adapt instead of
+  # depending on backend-specific plan internals. `nothing` means that the
+  # caller explicitly opted out with `cache=false`.
+  const plan_args::Union{Nothing,Dict{Symbol,Any}}
 end
 
 LinearOperators.storage_type(::NFFTOpImpl{T, vecT}) where {T, vecT} = vecT
 
-function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz, oversamplingFactor, kernelSize, S = Vector{Complex{T}}, kargs...) where {T}
+function _copy_nfft_plan_value(value)
+  value isa AbstractArray || return value
+  copied = similar(value, size(value))
+  copyto!(copied, value)
+  copied
+end
+
+function _adapt_nfft_plan_value(to, value)
+  value isa AbstractArray || return value
+  adapted = Adapt.adapt(to, value)
+  adapted isa AbstractArray || throw(ArgumentError(
+    "cannot adapt cached NFFT plan argument of type $(typeof(value)) to $(to)"))
+  adapted === value ? _copy_nfft_plan_value(adapted) : adapted
+end
+
+function _nfft_plan_cache(backend, tr, shape, plan_kwargs, cache)
+  cache || return nothing
+  Dict{Symbol,Any}(
+    :backend => backend,
+    :nodes => _copy_nfft_plan_value(tr),
+    :shape => shape,
+    :kwargs => Dict{Symbol,Any}(
+      key => _copy_nfft_plan_value(value)
+      for (key, value) in pairs(plan_kwargs)
+    ),
+  )
+end
+
+function NFFTOpImpl(shape::Tuple, tr::AbstractMatrix{T}; toeplitz, oversamplingFactor, kernelSize,
+                    S = Vector{Complex{T}}, cache::Bool=true, kargs...) where {T}
 
   baseArrayType = Base.typename(S).wrapper # https://github.com/JuliaLang/julia/issues/35543
-  plan = plan_nfft(baseArrayType, tr, shape; m=kernelSize, σ=oversamplingFactor,
-		                          fftflags=FFTW.ESTIMATE, blocking=true, kargs...)
+  backend = AbstractNFFTs.active_backend()
+  plan_kwargs = merge((m=kernelSize, σ=oversamplingFactor,
+                       fftflags=FFTW.ESTIMATE, blocking=true), (; kargs...))
+  plan = plan_nfft(backend, baseArrayType, tr, shape; plan_kwargs...)
+  plan_args = _nfft_plan_cache(backend, tr, shape, plan_kwargs, cache)
 
   return NFFTOpImpl{eltype(S), S, typeof(plan)}(size(tr,2), prod(shape), false, false
             , (res,x) -> produ!(res,plan,x)
             , nothing
             , (res,y) -> ctprodu!(res,plan,y)
             , 0, 0, 0, S(undef, 0), S(undef, 0)
-            , plan, toeplitz)
+            , plan, toeplitz, plan_args)
+end
+
+function Adapt.adapt_structure(to, op::NFFTOpImpl)
+  target_storage = LinearOperatorCollection._adapt_target_storage(to, op.Mv, "NFFTOp")
+  op.plan_args === nothing && throw(ArgumentError(
+    "cannot adapt NFFTOp constructed with cache=false: plan arguments were not retained"))
+  source_args = op.plan_args
+  targetArrayType = Base.typename(typeof(target_storage)).wrapper
+  target_nodes = _adapt_nfft_plan_value(to, source_args[:nodes])
+  target_kwargs = Dict{Symbol,Any}(
+    key => _adapt_nfft_plan_value(to, value)
+    for (key, value) in source_args[:kwargs]
+  )
+  plan = plan_nfft(source_args[:backend], targetArrayType, target_nodes,
+                   source_args[:shape]; target_kwargs...)
+  S = typeof(target_storage)
+  plan_args = Dict{Symbol,Any}(
+    :backend => source_args[:backend],
+    :nodes => target_nodes,
+    :shape => source_args[:shape],
+    :kwargs => target_kwargs,
+  )
+  return NFFTOpImpl{eltype(S), S, typeof(plan)}(
+    prod(size_out(plan)), prod(size_in(plan)), false, false,
+    (res,x) -> produ!(res, plan, x), nothing,
+    (res,y) -> ctprodu!(res, plan, y),
+    0, 0, 0, similar(target_storage, 0), similar(target_storage, 0),
+    plan, op.toeplitz, plan_args)
 end
 
 function produ!(y::AbstractVector, plan::AbstractNFFTPlan, x::AbstractVector) 
@@ -63,12 +137,22 @@ end
 
 function Base.copy(S::NFFTOpImpl{T, vecT, P}) where {T, vecT, P}
   plan = copy(S.plan)
+  plan_args = if isnothing(S.plan_args)
+    nothing
+  else
+    Dict{Symbol,Any}(
+      :backend => S.plan_args[:backend],
+      :nodes => _copy_nfft_plan_value(S.plan_args[:nodes]),
+      :shape => S.plan_args[:shape],
+      :kwargs => copy(S.plan_args[:kwargs]),
+    )
+  end
   return NFFTOpImpl{T, vecT, P}(size(plan.k,2), prod(size_in(plan)), false, false
               , (res,x) -> produ!(res,plan,x)
               , nothing
               , (res,y) -> ctprodu!(res,plan,y)
               , 0, 0, 0, vecT(undef, 0), vecT(undef, 0)
-              , plan, S.toeplitz)
+              , plan, S.toeplitz, plan_args)
 end
 
 
@@ -97,11 +181,26 @@ mutable struct NFFTToeplitzNormalOp{T, vecT <: AbstractVector{T}, D,W, matT <: A
   λ::matT
   xL1::matT
   xL2::matT
+  # FFT planner kwargs are retained for target reconstruction. `nothing`
+  # means that the caller explicitly opted out with `cache=false`.
+  const plan_kwargs::Union{Nothing,Dict{Symbol,Any}}
 end
 
 LinearOperators.storage_type(::NFFTToeplitzNormalOp{T, vecT}) where {T, vecT} = vecT
 
-function LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1::matT, xL2::matT, S = Vector{T}) where {T, D, matT <: AbstractArray{T, D}}
+"""
+    NFFTToeplitzNormalOp(...)
+
+Construct a Toeplitz normal operator for an NFFT. `Adapt.adapt(target, op)`
+keeps the shape, weights, Toeplitz kernel `λ`, and FFT planner options, and
+rebuilds the FFT plans, workspaces, and closures on the target. Set
+`cache=false` when constructing the operator to opt out of retaining planner
+kwargs; adapting such an operator raises an explicit `ArgumentError`.
+"""
+function LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan,
+                                                       λ, xL1::matT, xL2::matT,
+                                                       S = Vector{T}; cache::Bool=true,
+                                                       fft_kwargs=NamedTuple()) where {T, D, matT <: AbstractArray{T, D}}
 
   function produ!(y, shape, fftplan, ifftplan, λ, xL1, xL2, x)
     xL1 .= 0
@@ -116,24 +215,62 @@ function LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftpl
     return y
   end
 
+  plan_kwargs = cache ? Dict{Symbol,Any}(:fft_kwargs => Dict{Symbol,Any}(pairs(fft_kwargs))) : nothing
   return NFFTToeplitzNormalOp(prod(shape), prod(shape), false, false
          , (res,x) -> produ!(res, shape, fftplan, ifftplan, λ, xL1, xL2, x)
          , nothing
          , nothing
          , 0, 0, 0, S(undef, 0), S(undef, 0)
-         , shape, W, fftplan, ifftplan, λ, xL1, xL2)
+         , shape, W, fftplan, ifftplan, λ, xL1, xL2, plan_kwargs)
+end
+
+function _adapt_copy(to, value)
+  adapted = Adapt.adapt(to, value)
+  if adapted === value && adapted isa AbstractArray
+    copied = similar(adapted)
+    copyto!(copied, adapted)
+    return copied
+  end
+  adapted
+end
+
+function Adapt.adapt_structure(to, op::NFFTToeplitzNormalOp)
+  target_storage = LinearOperatorCollection._adapt_target_storage(to, op.Mv, "NFFTToeplitzNormalOp")
+  op.plan_kwargs === nothing && throw(ArgumentError(
+    "cannot adapt NFFTToeplitzNormalOp constructed with cache=false: " *
+    "FFT plan kwargs were not retained"))
+  xL1 = similar(target_storage, size(op.xL1))
+  xL2 = similar(xL1)
+  λ = _adapt_copy(to, op.λ)
+  fft_kwargs = op.plan_kwargs[:fft_kwargs]
+  fftplan = plan_fft(xL1; fft_kwargs...)
+  ifftplan = plan_ifft(xL1; fft_kwargs...)
+  weights = if isnothing(op.weights)
+    nothing
+  elseif op.weights isa AbstractArray
+    _adapt_copy(to, op.weights)
+  else
+    Adapt.adapt(to, op.weights)
+  end
+  S = typeof(target_storage)
+  return LinearOperatorCollection.NFFTToeplitzNormalOp(
+    op.shape, weights, fftplan, ifftplan, λ, xL1, xL2, S;
+    cache=true, fft_kwargs)
 end
 
 # TODO: use vecT for toeplitz op
-function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing; S = LinearOperators.storage_type(nfft), kwargs...) where {T}
+function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothing;
+                                                       S = LinearOperators.storage_type(nfft),
+                                                       cache::Bool=true, kwargs...) where {T}
   shape = size_in(nfft.plan)
 
   tmpVec = similar(nfft.Mv, (2 .* shape)...)
   tmpVec .= zero(T)
 
   # plan the FFTs
-  fftplan  = plan_fft(tmpVec; kwargs...)
-  ifftplan = plan_ifft(tmpVec; kwargs...)
+  fft_kwargs = (; kwargs...)
+  fftplan  = plan_fft(tmpVec; fft_kwargs...)
+  ifftplan = plan_ifft(tmpVec; fft_kwargs...)
 
   # TODO extend the following function by weights
   # λ = calculateToeplitzKernel(shape, nfft.plan.k; m = nfft.plan.params.m, σ = nfft.plan.params.σ, window = nfft.plan.params.window, LUTSize = nfft.plan.params.LUTSize, fftplan = fftplan)
@@ -151,17 +288,22 @@ function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T}, W=nothin
     eigMat = adjoint(p) * (tmpOnes)
   end
 
-  λ = fftplan * fftshift(eigMat)
+  λ = similar(tmpVec)
+  λ .= fftplan * fftshift(eigMat)
 
   xL1 = tmpVec
   xL2 = similar(xL1)
 
-  return LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1, xL2, S)
+  return LinearOperatorCollection.NFFTToeplitzNormalOp(
+    shape, W, fftplan, ifftplan, λ, xL1, xL2, S;
+    cache, fft_kwargs)
 end
 
-function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W = nothing; copyOpsFn = copy, kwargs...) where T
+function LinearOperatorCollection.normalOperator(S::NFFTOpImpl{T}, W = nothing;
+                                                copyOpsFn = copy, cache::Bool=true,
+                                                kwargs...) where T
   if S.toeplitz
-    return LinearOperatorCollection.NFFTToeplitzNormalOp(S,W; kwargs...)
+    return LinearOperatorCollection.NFFTToeplitzNormalOp(S, W; cache, kwargs...)
   else
     return NormalOp(eltype(S); parent = S, weights = W)
   end
@@ -170,5 +312,8 @@ end
 function Base.copy(A::NFFTToeplitzNormalOp{T,vecT,D,W}) where {T,vecT,D,W}
   fftplan  = plan_fft( zeros(T, 2 .* A.shape); flags=FFTW.MEASURE)
   ifftplan = plan_ifft(zeros(T, 2 .* A.shape); flags=FFTW.MEASURE)
-  return LinearOperatorCollection.NFFTToeplitzNormalOp(A.shape, A.weights, fftplan, ifftplan, A.λ, copy(A.xL1), copy(A.xL2))
+  fft_kwargs = (flags=FFTW.MEASURE,)
+  return LinearOperatorCollection.NFFTToeplitzNormalOp(
+    A.shape, A.weights, fftplan, ifftplan, A.λ, copy(A.xL1), copy(A.xL2);
+    cache=!isnothing(A.plan_kwargs), fft_kwargs)
 end
