@@ -2,6 +2,8 @@
 SamplingOp
 WeightingOp
 DiagOp
+RowBlockOp
+rowblocks
 GradientOp
 ProdOp
 NormalOp

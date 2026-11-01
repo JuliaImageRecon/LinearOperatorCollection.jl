@@ -37,6 +37,7 @@ makedocs(
             "Weighting Operator" => "generated/tutorials/weighting.md",
             "FFT Operator" => "generated/tutorials/fft.md",
             "Diagonal Operator" => "generated/tutorials/diagonal.md",
+            "Row-Block Operator" => "generated/tutorials/rowblock.md",
             "Gradient Operator" => "generated/tutorials/gradient.md",
             #"Sampling Operator" => "generated/tutorials/sampling.md",
             #"NFFT Operator" => "generated/tutorials/nfft.md",

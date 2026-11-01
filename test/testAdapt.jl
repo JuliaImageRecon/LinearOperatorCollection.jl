@@ -191,6 +191,21 @@ end
         end
       end
 
+      @testset "RowBlockOp and its normal operator" begin
+        A = rand(Float32, 3N, N)
+        for source in (RowBlockOp(A, 3), RowBlockOp(A, 3; mode = :contiguous), RowBlockOp(A, 3; mode = :random))
+          adapted = Adapt.adapt(array_type, source)
+          check_adapted_storage(adapted, array_type)
+          # index vectors move to the device and stay integers
+          @test all(r isa AbstractUnitRange || (r isa array_type && eltype(r) <: Integer) for r in adapted.rows)
+          x = rand(Float32, N)
+          check_adapted_mul(source, adapted, x, array_type)
+          check_adapted_mul(adjoint(source), adjoint(adapted), rand(Float32, 3N), array_type)
+          check_adapted_mul(normalOperator(source), normalOperator(adapted), x, array_type)
+          check_adapted_mul(normalOperator(source), Adapt.adapt(array_type, normalOperator(source)), x, array_type)
+        end
+      end
+
       @testset "DiagOp preserves tuple ops" begin
         source = DiagOp((WeightingOp(rand(Float32, N)), WeightingOp(rand(Float32, N))))
         source_ops_snapshot = map(block -> copy(block.weights), source.ops)
