@@ -1,16 +1,20 @@
 module LinearOperatorNonuniformFFTsExt
 
 using LinearOperatorCollection, AbstractNFFTs, NonuniformFFTs, NonuniformFFTs.Kernels, FFTW
+using Adapt
 
-function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T, P}, W=nothing; S = LinearOperators.storage_type(nfft), kwargs...) where {T, P <: NonuniformFFTs.NFFTPlan}
+function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T, P}, W=nothing;
+                                                       S = LinearOperators.storage_type(nfft),
+                                                       cache::Bool=true, kwargs...) where {T, P <: NonuniformFFTs.NFFTPlan}
   shape = size_in(nfft.plan)
 
   tmpVec = similar(nfft.Mv, (2 .* shape)...)
   tmpVec .= zero(T)
 
   # plan the FFTs
-  fftplan  = plan_fft(tmpVec; kwargs...)
-  ifftplan = plan_ifft(tmpVec; kwargs...)
+  fft_kwargs = (; kwargs...)
+  fftplan  = plan_fft(tmpVec; fft_kwargs...)
+  ifftplan = plan_ifft(tmpVec; fft_kwargs...)
 
   # TODO extend the following function by weights
   # λ = calculateToeplitzKernel(shape, nfft.plan.k; m = nfft.plan.params.m, σ = nfft.plan.params.σ, window = nfft.plan.params.window, LUTSize = nfft.plan.params.LUTSize, fftplan = fftplan)
@@ -34,12 +38,15 @@ function LinearOperatorCollection.NFFTToeplitzNormalOp(nfft::NFFTOp{T, P}, W=not
     eigMat = adjoint(p) * (tmpOnes)
   end
 
-  λ = fftplan * fftshift(eigMat)
+  λ = similar(tmpVec)
+  λ .= fftplan * fftshift(eigMat)
 
   xL1 = tmpVec
   xL2 = similar(xL1)
 
-  return LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan, λ, xL1, xL2, S)
+  return LinearOperatorCollection.NFFTToeplitzNormalOp(
+    shape, W, fftplan, ifftplan, λ, xL1, xL2, S;
+    cache, fft_kwargs)
 end
 
 
