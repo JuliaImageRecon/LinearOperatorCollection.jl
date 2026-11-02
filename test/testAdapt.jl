@@ -526,6 +526,22 @@ storage_vector_type(array_type, T) = typeof(array_type(zeros(T, 0)))
         @test_throws BoundsError GradientOp(Float32; shape=(4, 3), dims=3)
       end
 
+      @testset "GradientOp element-typed targets" begin
+        directions = array_type === Array ? ((Array, Array),) : ((Array, array_type), (array_type, Array))
+        for (from, to) in directions, dims in ((1, 2), 2)
+          source = GradientOp(Float64; shape=(4, 3), dims, S=storage_vector_type(from, Float64))
+          inputs = gradient_inputs(source)
+          expected = gradient_actions(source, from, inputs)
+
+          adapted = Adapt.adapt(to{Float64}, source)
+          check_gradient_rebuild(adapted, source, to)
+          @test gradient_actions_match(adapted, to, inputs, expected)
+
+          @test_throws ArgumentError Adapt.adapt(to{Float32}, source)
+          @test_throws ArgumentError Adapt.adapt(to{ComplexF64}, source)
+        end
+      end
+
       @testset "GradientOp replays the directions taken at construction" begin
         shape = (4, 3)
         T = Float32

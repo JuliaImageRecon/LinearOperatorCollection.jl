@@ -22,6 +22,8 @@ or `ROCArray`), and `copy(op)` returns a new one with the same storage type. Bot
 operator and its temporary storage from `shape` and the directions taken from `dims` at
 construction; a later change of the vector passed as `dims`, or an iterator consumed by the
 construction, has no effect. `op` itself is not modified. The directions stay on the host.
+A target with an element type, e.g. `CuArray{Float32}`, must match the element type of `op`;
+otherwise an `ArgumentError` is thrown.
 """
 function GradientOp(::Type{T}; shape::NTuple{N,Int}, dims=1:length(shape), kwargs...) where {T <: Number, N}
   return GradientOpImpl(T, shape, dims; kwargs...)
@@ -100,6 +102,10 @@ Base.copy(op::GradientOpImpl) = _rebuild_gradient(op, storage_type(op))
 
 function Adapt.adapt_structure(to, op::GradientOpImpl)
   target_storage = _adapt_target_storage(to, op.Mv, "GradientOp")
+  # The rebuild keeps the element type of the operator, so the target storage must share it
+  eltype(target_storage) == eltype(op.Mv) || throw(ArgumentError(
+    "unsupported Adapt target $(to) for GradientOp: element type $(eltype(target_storage)) " *
+    "differs from the operator's $(eltype(op.Mv))"))
   return _rebuild_gradient(op, typeof(target_storage))
 end
 
