@@ -2,7 +2,7 @@ function LinearOperatorCollection.grad!(res::vecT, img::vecT, shape::NTuple{N,In
   res = reshape(res, shape .- Tuple(di))
   backend = get_backend(res)
 
-  @kernel cpu = false inbounds = true function grad_kernel!(res, img, di)
+  @kernel inbounds = true function grad_kernel!(res, img, di)
     idx = @index(Global, Cartesian)
     res[idx] = img[idx] - img[idx + di]
   end
@@ -33,12 +33,12 @@ function LinearOperatorCollection.grad_t!(res::vecT, g::vecT, shape::NTuple{N,In
   return res
 end
 
-@kernel cpu = false inbounds = true function grad_t_kernel_1!(res, g, di)
+@kernel inbounds = true function grad_t_kernel_1!(res, g, di)
   idx = @index(Global, Cartesian)
   res[idx] += g[idx]  
 end
 
-@kernel cpu = false inbounds = true function grad_t_kernel_2!(res, g, di)
+@kernel inbounds = true function grad_t_kernel_2!(res, g, di)
   idx = @index(Global, Cartesian)
   res[idx + di] -= g[idx]  
 end

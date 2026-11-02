@@ -11,12 +11,37 @@ directional gradient operator along the dimensions `dims` for an array of size `
 
 # Optional Keyword argument
   * `dims`                     - dimension(s) along which the gradient is applied; default is `1:length(shape)`
+  * `S`                        - storage type of the operator, e.g. `Vector{T}` (default) or `CuArray{T, 1}`
+
+# Moving to another array backend
+
+    Adapt.adapt(CuArray, op)
+
+returns a new gradient operator for the target array type (e.g. `Array`, `JLArray`, `CuArray`
+or `ROCArray`), and `copy(op)` returns a new one with the same storage type. Both rebuild the
+operator and its temporary storage from `shape` and the directions taken from `dims` at
+construction; a later change of the vector passed as `dims`, or an iterator consumed by the
+construction, has no effect. `op` itself is not modified. The directions stay on the host.
 """
 function GradientOp(::Type{T}; shape::NTuple{N,Int}, dims=1:length(shape), kwargs...) where {T <: Number, N}
   return GradientOpImpl(T, shape, dims; kwargs...)
 end
 
+struct GradientOpImpl{T, vecT <: AbstractVector, O <: AbstractLinearOperator{T}, D, N, W} <: GradientOp{T}
+  op::O
+  shape::NTuple{N, Int}
+  # `Int` for a single direction, otherwise the tuple of directions taken from `dims` at construction
+  dims::D
+  # temporary vector of the adjoint for several directions, `nothing` for a single direction
+  tmp::W
+  function GradientOpImpl(op::O, shape::NTuple{N, Int}, dims::D, tmp::W) where {T, O <: AbstractLinearOperator{T}, D, N, W}
+    return new{T, storage_type(op), O, D, N, W}(op, shape, dims, tmp)
+  end
+end
+
 function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dims; S = Vector{T}) where N
+  # Iterate `dims` once: replaying the operator must not depend on the caller's container later on
+  dims = Tuple(dims)
   dirs = CartesianIndex{N}[]
   cols = Int64[]
   for dim in dims
@@ -34,11 +59,12 @@ function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dims; S = Vector{T}) wher
 
   tmp = S(undef, ncol)
   
-  return LinearOperator{T}(nrow, ncol, false, false,
+  op = LinearOperator{T}(nrow, ncol, false, false,
                           (res,x) -> (grad!(res,x,shape,dirs, dims, dim_ends)),
                           (res,x) -> (grad_t!(res,x,shape,dirs, dims, dim_ends, tmp)),
                           (res,x) -> (grad_t!(res,x,shape,dirs, dims, dim_ends, tmp)),
                           S = S)
+  return GradientOpImpl(op, shape, dims, tmp)
 end
 
 function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dim::Int; S = Vector{T}) where N
@@ -48,11 +74,33 @@ function GradientOpImpl(T::Type, shape::NTuple{N,Int}, dim::Int; S = Vector{T}) 
   δ[dim] = 1
   δ = Tuple(δ)
   dir = CartesianIndex(δ)
-  return LinearOperator{T}(nrow, ncol, false, false,
+  op = LinearOperator{T}(nrow, ncol, false, false,
                           (res,x) -> (grad!(res,x,shape,dir)),
                           (res,x) -> (grad_t!(res,x,shape,dir)),
                           (res,x) -> (grad_t!(res,x,shape,dir)),
                           S = S)
+  return GradientOpImpl(op, shape, dim, nothing)
+end
+
+function Base.getproperty(op::GradientOpImpl, field::Symbol)
+  if in(field, (:op, :shape, :dims, :tmp))
+    return getfield(op, field)
+  else
+    return getproperty(getfield(op, :op), field)
+  end
+end
+Base.setproperty!(op::GradientOpImpl, field::Symbol, value) = setproperty!(op.op, field, value)
+
+storage_type(::GradientOpImpl{T, vecT}) where {T, vecT} = vecT
+
+# Rebuild the operator, its closures and temporary vector from the shape and the directions
+_rebuild_gradient(op::GradientOpImpl, S) = GradientOpImpl(eltype(op), op.shape, op.dims; S = S)
+
+Base.copy(op::GradientOpImpl) = _rebuild_gradient(op, storage_type(op))
+
+function Adapt.adapt_structure(to, op::GradientOpImpl)
+  target_storage = _adapt_target_storage(to, op.Mv, "GradientOp")
+  return _rebuild_gradient(op, typeof(target_storage))
 end
 
 function grad!(res::T, img::U, shape, dirs, dims, dim_ends) where {T<:AbstractVector, U<:AbstractVector}
