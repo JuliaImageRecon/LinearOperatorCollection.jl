@@ -541,17 +541,17 @@ storage_vector_type(array_type, T) = typeof(array_type(zeros(T, 0)))
           @test_throws ArgumentError Adapt.adapt(to{ComplexF64}, source)
         end
 
-        # Storage of another element type than the operator is rejected for any target
+        # An operator whose storage element type differs from its own is rejected for any target
         for dims in ((1, 2), 2)
           mixed = GradientOp(Float64; shape=(4, 3), dims, S=Vector{Float32})
-          x = rand(Float64, size(mixed, 2))
-          @test_throws ArgumentError Adapt.adapt(array_type, mixed)
-          @test_throws ArgumentError Adapt.adapt(Array, mixed)
-          @test copy(mixed) * x == mixed * x
-          # A target naming the operator's element type rebuilds consistent storage
-          consistent = Adapt.adapt(array_type{Float64}, mixed)
-          check_adapted_storage(consistent, array_type{Float64})
-          @test gradient_matches(consistent * array_type(x), GradientOp(Float64; shape=(4, 3), dims) * x, Float64)
+          inputs = gradient_inputs(mixed)
+          expected = gradient_actions(mixed, Array, inputs)
+          for to in unique((array_type, Array, array_type{Float64}, array_type{Float32}, Array{Float64}))
+            @test_throws ArgumentError Adapt.adapt(to, mixed)
+          end
+          copied = copy(mixed)
+          @test LinearOperators.storage_type(copied) == Vector{Float32}
+          @test all(actual == reference for (actual, reference) in zip(gradient_actions(copied, Array, inputs), expected))
         end
       end
 

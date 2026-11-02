@@ -23,8 +23,9 @@ operator and its temporary storage from `shape` and the directions taken from `d
 construction; a later change of the vector passed as `dims`, or an iterator consumed by the
 construction, has no effect. `op` itself is not modified. The directions stay on the host.
 The adapted storage must have the element type of `op`: an element-typed target such as
-`CuArray{Float32}` for a `Float64` operator throws an `ArgumentError`, and so does a target
-without an element type for an operator built with an `S` of another element type.
+`CuArray{Float32}` for a `Float64` operator throws an `ArgumentError`. An operator built with
+an `S` of another element type cannot be adapted to any target and throws an `ArgumentError`;
+`copy` keeps it as it is.
 """
 function GradientOp(::Type{T}; shape::NTuple{N,Int}, dims=1:length(shape), kwargs...) where {T <: Number, N}
   return GradientOpImpl(T, shape, dims; kwargs...)
@@ -102,11 +103,15 @@ _rebuild_gradient(op::GradientOpImpl, S) = GradientOpImpl(eltype(op), op.shape, 
 Base.copy(op::GradientOpImpl) = _rebuild_gradient(op, storage_type(op))
 
 function Adapt.adapt_structure(to, op::GradientOpImpl)
+  T = eltype(op)
+  # A rebuild with other storage would change the precision of the adjoint's temporary vector
+  eltype(storage_type(op)) == T || throw(ArgumentError(
+    "cannot adapt GradientOp with storage element type $(eltype(storage_type(op))) " *
+    "and operator element type $(T); construct it with matching element types"))
   target_storage = _adapt_target_storage(to, op.Mv, "GradientOp")
-  # The rebuild keeps the element type of the operator, so the target storage must share it
-  eltype(target_storage) == eltype(op) || throw(ArgumentError(
+  eltype(target_storage) == T || throw(ArgumentError(
     "unsupported Adapt target $(to) for GradientOp: storage element type $(eltype(target_storage)) " *
-    "differs from the operator's element type $(eltype(op))"))
+    "differs from the operator's element type $(T)"))
   return _rebuild_gradient(op, typeof(target_storage))
 end
 
