@@ -106,6 +106,81 @@ function mutate_sampling_pattern!(pattern, n)
   return pattern
 end
 
+gradient_test_data(::Type{T}, n) where {T <: Integer} = rand(T(-5):T(5), n)
+gradient_test_data(::Type{T}, n) where {T} = rand(T, n)
+
+gradient_matches(actual, expected, ::Type{T}) where {T <: Integer} = Array(actual) == expected
+function gradient_matches(actual, expected, ::Type{T}) where {T}
+  tol = real(T) === Float32 ? (rtol = 5f-5, atol = 5f-6) : (rtol = 1e-11, atol = 1e-12)
+  return isapprox(Array(actual), expected; tol...)
+end
+
+function gradient_inputs(op)
+  T = eltype(op)
+  m, n = size(op)
+  return (x = gradient_test_data(T, n), y = gradient_test_data(T, m),
+          x0 = gradient_test_data(T, n), y0 = gradient_test_data(T, m), α = T(2), β = T(3))
+end
+
+# Host copies of the forward, transpose and adjoint actions, each with 3- and 5-argument `mul!`
+function gradient_actions(op, storage, inputs)
+  (; x, y, x0, y0, α, β) = inputs
+  results = Any[]
+  for (A, input, init) in ((op, x, y0), (transpose(op), y, x0), (adjoint(op), y, x0))
+    out = storage(zero(init))
+    mul!(out, A, storage(input))
+    push!(results, Array(out))
+    out = storage(copy(init))
+    mul!(out, A, storage(input), α, β)
+    push!(results, Array(out))
+  end
+  return results
+end
+
+gradient_actions_match(op, storage, inputs, expected) =
+  all(gradient_matches(actual, reference, eltype(op))
+      for (actual, reference) in zip(gradient_actions(op, storage, inputs), expected))
+
+# Give the source scratch deterministic contents before it is snapshotted
+function initialize_gradient_tmp!(op)
+  op.tmp === nothing || copyto!(op.tmp, gradient_test_data(eltype(op.tmp), length(op.tmp)))
+  return op
+end
+
+snapshot_gradient(op) = (Mv = Array(op.Mv), Mtu = Array(op.Mtu),
+                         tmp = op.tmp === nothing ? nothing : Array(op.tmp),
+                         counters = (op.nprod, op.ntprod, op.nctprod))
+
+function check_gradient_snapshot(op, snapshot)
+  @test Array(op.Mv) == snapshot.Mv
+  @test Array(op.Mtu) == snapshot.Mtu
+  if snapshot.tmp === nothing
+    @test op.tmp === nothing
+  else
+    @test Array(op.tmp) == snapshot.tmp
+  end
+  @test (op.nprod, op.ntprod, op.nctprod) == snapshot.counters
+end
+
+function check_gradient_rebuild(rebuilt, source, array_type)
+  @test rebuilt isa LinearOperatorCollection.GradientOpImpl
+  @test getfield(rebuilt, :op) !== getfield(source, :op)
+  check_adapted_storage(rebuilt, array_type)
+  @test typeof(rebuilt.Mv) <: array_type
+  if source.tmp === nothing
+    @test rebuilt.tmp === nothing
+  else
+    @test typeof(rebuilt.tmp) <: array_type
+    @test rebuilt.tmp !== source.tmp
+  end
+  @test rebuilt.dims === source.dims
+  @test rebuilt.shape == source.shape
+  @test size(rebuilt) == size(source)
+  @test eltype(rebuilt) == eltype(source)
+end
+
+storage_vector_type(array_type, T) = typeof(array_type(zeros(T, 0)))
+
 @testset "Adapt reconstruction" begin
   N = 16
 
@@ -553,6 +628,114 @@ end
           @test adapted.plan_kwargs == source_normal.plan_kwargs
           @test adapted.fftplan !== source_normal.fftplan
         end
+      end
+
+      @testset "GradientOp rebuilds closures and scratch" begin
+        cases = (((7,), nothing, (1,)), ((7,), 1, 1),
+                 ((4, 3), nothing, (1, 2)), ((4, 3), 2, 2), ((4, 3), 1:2, (1, 2)),
+                 ((4, 3), (2, 1), (2, 1)), ((4, 3), (2, 1, 2), (2, 1, 2)), ((4, 3), (), ()),
+                 ((3, 1, 2), nothing, (1, 2, 3)), ((3, 1, 2), 2, 2))
+        directions = array_type === Array ? ((Array, Array),) : ((Array, array_type), (array_type, Array))
+        for (from, to) in directions, T in (Float32, Float64, ComplexF32, ComplexF64, Int32),
+            (shape, dims, expected_dims) in cases
+          S = storage_vector_type(from, T)
+          source = dims === nothing ? GradientOp(T; shape, S) : GradientOp(T; shape, dims, S)
+          @test source.dims === expected_dims
+          inputs = gradient_inputs(source)
+          expected = gradient_actions(source, from, inputs)
+          initialize_gradient_tmp!(source)
+          snapshot = snapshot_gradient(source)
+
+          adapted = Adapt.adapt(to, source)
+          copied = copy(source)
+          check_gradient_rebuild(adapted, source, to)
+          check_gradient_rebuild(copied, source, from)
+          @test gradient_actions_match(adapted, to, inputs, expected)
+          @test gradient_actions_match(copied, from, inputs, expected)
+          check_gradient_snapshot(source, snapshot)
+          @test gradient_actions_match(source, from, inputs, expected)
+        end
+
+        @test_throws BoundsError GradientOp(Float32; shape=(4, 3), dims=3)
+      end
+
+      @testset "GradientOp element-typed targets" begin
+        directions = array_type === Array ? ((Array, Array),) : ((Array, array_type), (array_type, Array))
+        for (from, to) in directions, dims in ((1, 2), 2)
+          source = GradientOp(Float64; shape=(4, 3), dims, S=storage_vector_type(from, Float64))
+          inputs = gradient_inputs(source)
+          expected = gradient_actions(source, from, inputs)
+
+          adapted = Adapt.adapt(to{Float64}, source)
+          check_gradient_rebuild(adapted, source, to)
+          @test gradient_actions_match(adapted, to, inputs, expected)
+
+          @test_throws ArgumentError Adapt.adapt(to{Float32}, source)
+          @test_throws ArgumentError Adapt.adapt(to{ComplexF64}, source)
+        end
+
+        # An operator whose storage element type differs from its own is rejected for any target
+        for dims in ((1, 2), 2)
+          mixed = GradientOp(Float64; shape=(4, 3), dims, S=Vector{Float32})
+          inputs = gradient_inputs(mixed)
+          expected = gradient_actions(mixed, Array, inputs)
+          for to in unique((array_type, Array, array_type{Float64}, array_type{Float32}, Array{Float64}))
+            @test_throws ArgumentError Adapt.adapt(to, mixed)
+          end
+          copied = copy(mixed)
+          @test LinearOperators.storage_type(copied) == Vector{Float32}
+          @test all(actual == reference for (actual, reference) in zip(gradient_actions(copied, Array, inputs), expected))
+        end
+      end
+
+      @testset "GradientOp replays the directions taken at construction" begin
+        shape = (4, 3)
+        T = Float32
+        x = rand(T, prod(shape))
+        reference = GradientOp(T; shape, dims=(2, 1))
+        y = rand(T, size(reference, 1))
+        expected = (reference * x, adjoint(reference) * y)
+        acts_like_reference(op) = gradient_matches(op * array_type(x), expected[1], T) &&
+                                  gradient_matches(adjoint(op) * array_type(y), expected[2], T)
+
+        live_dims = [2, 1]
+        mutated = GradientOp(T; shape, dims=live_dims)
+        reverse!(live_dims)
+        @test mutated.dims === (2, 1)
+        @test acts_like_reference(Adapt.adapt(array_type, mutated))
+        @test acts_like_reference(Adapt.adapt(array_type, copy(mutated)))
+
+        consumed = GradientOp(T; shape, dims=Iterators.Stateful([2, 1, 2]))
+        @test consumed.dims === (2, 1, 2)
+        x3 = rand(T, prod(shape))
+        expected3 = GradientOp(T; shape, dims=(2, 1, 2)) * x3
+        @test gradient_matches(Adapt.adapt(array_type, consumed) * array_type(x3), expected3, T)
+        @test gradient_matches(Adapt.adapt(array_type, copy(consumed)) * array_type(x3), expected3, T)
+
+        factory = createLinearOperator(GradientOp{T}; shape, dims=(2, 1))
+        @test acts_like_reference(Adapt.adapt(array_type, factory))
+
+        weights = rand(T, size(reference, 1))
+        compositions = (ProdOp(WeightingOp(weights), reference), normalOperator(reference),
+                        DiagOp(reference, 2))
+        for source in compositions
+          xs = rand(T, size(source, 2))
+          forward = source * xs
+          adapted = Adapt.adapt(array_type, source)
+          check_adapted_storage(adapted, array_type)
+          @test gradient_matches(adapted * array_type(xs), forward, T)
+          # The normal operator defines no adjoint action; it is self-adjoint
+          if !(source isa LinearOperatorCollection.NormalOpImpl)
+            ys = rand(T, size(source, 1))
+            backward = adjoint(source) * ys
+            @test gradient_matches(adjoint(adapted) * array_type(ys), backward, T)
+          end
+        end
+        @test compositions[3].ops[1].tmp !== compositions[3].ops[2].tmp
+        diag = Adapt.adapt(array_type, compositions[3])
+        @test all(op isa LinearOperatorCollection.GradientOpImpl for op in diag.ops)
+        @test diag.ops[1].tmp !== diag.ops[2].tmp
+        @test all(typeof(op.tmp) <: array_type for op in diag.ops)
       end
     end
   end
