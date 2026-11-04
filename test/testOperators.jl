@@ -184,6 +184,57 @@ function testDirectionalGradOp(N=64;arrayType = Array)
   @test norm(x2r-vec(x2r_ref)) / norm(x2r_ref) ≈ 0 atol=0.001
 end
 
+function testSamplingModes(; arrayType = Array)
+  shape = (4, 3)
+  pattern = [4 2 3; 1 4 2]
+  idx = [4, 1, 6, 8, 11, 10]
+  @test vectorizePattern(pattern, shape) == idx
+  mask = zeros(Bool, 12); mask[[2, 5, 9]] .= true
+
+  for T in (Float32, ComplexF32)
+    S = typeof(arrayType(zeros(T, 1)))
+    x = rand(T, 12)
+    y = rand(T, 6)
+    ops = (
+      (SamplingOp(T; pattern, shape, S), idx),
+      (createLinearOperator(SamplingOp{T}; pattern, shape, S), idx),
+      (SamplingOp(T; pattern = mask, S), nothing),
+      (createLinearOperator(SamplingOp{T}; pattern = mask, S), nothing),
+    )
+    for (op, ref_idx) in ops
+      @test op isa SamplingOp{T}
+      @test eltype(op) == T
+      check_storage(op, arrayType)
+      if isnothing(ref_idx)
+        @test size(op) == (12, 12)
+        forward_ref = mask .* x
+        adjoint_in = x
+        adjoint_ref = mask .* x
+      else
+        @test size(op) == (6, 12)
+        forward_ref = x[ref_idx]
+        adjoint_in = y
+        adjoint_ref = zeros(T, 12); adjoint_ref[ref_idx] .= y
+      end
+      @test Array(op * arrayType(x)) ≈ forward_ref
+      @test Array(adjoint(op) * arrayType(adjoint_in)) ≈ adjoint_ref
+      res = rand(T, size(op, 1))
+      res_op = arrayType(copy(res))
+      mul!(res_op, op, arrayType(x), T(2), T(3))
+      @test Array(res_op) ≈ 2 .* forward_ref .+ 3 .* res
+      res = rand(T, size(op, 2))
+      res_op = arrayType(copy(res))
+      mul!(res_op, adjoint(op), arrayType(adjoint_in), T(2), T(3))
+      if isnothing(ref_idx)
+        @test Array(res_op) ≈ 2 .* adjoint_ref .+ 3 .* res
+      else
+        # LinearOperators' opRestriction transpose kernel ignores α and β.
+        @test_broken Array(res_op) ≈ 2 .* adjoint_ref .+ 3 .* res
+      end
+    end
+  end
+end
+
 function testSampling(N=64;arrayType = Array)
   x = rand(ComplexF64,N,N)
   xop = arrayType(vec(x))
@@ -502,6 +553,7 @@ end
     @testset testDirectionalGradOp(64;arrayType) 
     @info "test SamplingOp: $arrayType"
     @testset testSampling(64;arrayType)
+    @testset testSamplingModes(;arrayType)
     @info "test WaveletOp: $arrayType"
     @testset testWavelet(64,64;arrayType)
     @testset testWavelet(64,60;arrayType)

@@ -54,6 +54,58 @@ function custom_point_transform(x::AbstractFloat)
 end
 custom_point_transform(x::Tuple) = map(custom_point_transform, x)
 
+const SamplingOpImpl = LinearOperatorCollection.SamplingOpImpl
+
+function init_sampling_workspaces!(op, array_type)
+  T = eltype(op)
+  m, n = size(op)
+  mul!(array_type(rand(T, m)), op, array_type(rand(T, n)), T(2), T(3))
+  mul!(array_type(rand(T, n)), adjoint(op), array_type(rand(T, m)), T(2), T(3))
+  return op
+end
+
+snapshot_sampling(op) = (pattern = Array(op.pattern), Mv = Array(op.Mv), Mtu = Array(op.Mtu))
+
+function check_sampling_snapshot(op, snapshot)
+  @test Array(op.pattern) == snapshot.pattern
+  @test Array(op.Mv) == snapshot.Mv
+  @test Array(op.Mtu) == snapshot.Mtu
+end
+
+function check_sampling_action(op, array_type, x, y, forward, adjoint_result)
+  @test Array(op * array_type(x)) ≈ forward rtol = 1f-4
+  @test Array(adjoint(op) * array_type(y)) ≈ adjoint_result rtol = 1f-4
+end
+
+function check_sampling_rebuild(adapted, source, array_type)
+  @test adapted isa SamplingOpImpl
+  @test adapted !== source
+  @test adapted.op !== source.op
+  @test adapted.prod! !== source.prod!
+  check_adapted_storage(adapted, array_type)
+  @test typeof(adapted.Mv) <: array_type
+  @test typeof(adapted.Mtu) <: array_type
+  @test adapted.pattern !== source.pattern
+  @test Array(adapted.pattern) == Array(source.pattern)
+  @test adapted.shape == source.shape
+  if eltype(source.pattern) == Bool
+    @test typeof(adapted.pattern) <: array_type
+    @test eltype(adapted.pattern) == Bool
+  else
+    @test adapted.pattern isa Vector{Int}
+  end
+end
+
+# GPU-safe: whole-array broadcast for masks, host indices are plain vectors.
+function mutate_sampling_pattern!(pattern, n)
+  if eltype(pattern) == Bool
+    pattern .= .!pattern
+  else
+    pattern[1] = mod1(pattern[1] + 1, n)
+  end
+  return pattern
+end
+
 gradient_test_data(::Type{T}, n) where {T <: Integer} = rand(T(-5):T(5), n)
 gradient_test_data(::Type{T}, n) where {T} = rand(T, n)
 
@@ -319,6 +371,87 @@ storage_vector_type(array_type, T) = typeof(array_type(zeros(T, 0)))
         x = rand(Float32, 2N)
         check_adapted_mul(source, adapted, x, array_type)
         check_adapted_mul(source_normal, adapted_normal, x, array_type)
+      end
+
+      @testset "SamplingOp $(mode) $(T)" for mode in (:index, :mask), T in (Float32, ComplexF32)
+        pattern_matrix = [mod1(3i + j, N) for i in 1:N÷2, j in 1:N]
+        caller = mode == :index ? pattern_matrix : [isodd(i ÷ 3) for i in 1:N^2]
+        source = mode == :index ? SamplingOp(T; pattern = caller, shape = (N, N)) :
+                                  SamplingOp(T; pattern = caller)
+        x = rand(T, size(source, 2))
+        y = rand(T, size(source, 1))
+        forward = source * x
+        adjoint_result = adjoint(source) * y
+        init_sampling_workspaces!(source, Array)
+        source_snapshot = snapshot_sampling(source)
+
+        # The caller's matrix or mask was copied at construction.
+        mutate_sampling_pattern!(caller, N^2)
+        check_sampling_snapshot(source, source_snapshot)
+
+        target = Adapt.adapt(array_type, source)
+        check_sampling_rebuild(target, source, array_type)
+        check_sampling_action(target, array_type, x, y, forward, adjoint_result)
+        check_sampling_snapshot(source, source_snapshot)
+
+        # Same-backend reconstruction on the target.
+        init_sampling_workspaces!(target, array_type)
+        target_snapshot = snapshot_sampling(target)
+        same = Adapt.adapt(array_type, target)
+        check_sampling_rebuild(same, target, array_type)
+        check_sampling_action(same, array_type, x, y, forward, adjoint_result)
+        check_sampling_snapshot(target, target_snapshot)
+        mutate_sampling_pattern!(target.pattern, N^2)
+        check_sampling_action(same, array_type, x, y, forward, adjoint_result)
+
+        round_trip = Adapt.adapt(Array, same)
+        check_sampling_rebuild(round_trip, same, Array)
+        check_sampling_action(round_trip, Array, x, y, forward, adjoint_result)
+
+        # copy has its own operator, pattern, and workspaces.
+        copied = copy(source)
+        check_sampling_rebuild(copied, source, Array)
+        init_sampling_workspaces!(copied, Array)
+        isempty(source.Mv) || @test copied.Mv !== source.Mv
+        isempty(source.Mtu) || @test copied.Mtu !== source.Mtu
+        check_sampling_snapshot(source, source_snapshot)
+        check_sampling_action(copied, Array, x, y, forward, adjoint_result)
+
+        # Mutating the source pattern after adaptation does not reach the target.
+        adapted = Adapt.adapt(array_type, source)
+        mutate_sampling_pattern!(source.pattern, N^2)
+        check_sampling_action(adapted, array_type, x, y, forward, adjoint_result)
+      end
+
+      @testset "SamplingOp live index vector" begin
+        indices = collect(1:3:N^2)
+        source = SamplingOp(Float32; pattern = indices, shape = (N, N))
+        @test source.pattern === indices
+        indices[1] = 2
+        adapted = Adapt.adapt(array_type, source)
+        x = rand(Float32, N^2)
+        @test source * x == x[indices]
+        @test Array(adapted * array_type(x)) ≈ x[indices]
+        @test adapted.pattern == indices
+        @test adapted.pattern !== indices
+      end
+
+      @testset "SamplingOp ∘ FFTOp" begin
+        pattern = [mod1(3i + j, N) for i in 1:N÷2, j in 1:N]
+        source = SamplingOp(ComplexF32; pattern, shape = (N, N)) ∘
+                 FFTOp(ComplexF32; shape = (N, N), S = Vector{ComplexF32})
+        @test size(source) == (N^2 ÷ 2, N^2)
+        adapted = Adapt.adapt(array_type, source)
+        @test adapted isa ProdOp
+        @test adapted.A isa SamplingOpImpl
+        check_adapted_storage(adapted, array_type)
+        check_adapted_storage(adapted.A, array_type)
+        check_adapted_storage(adapted.B, array_type)
+        @test typeof(adapted.tmp) <: array_type
+        @test adapted.A.pattern == source.A.pattern
+        x = randn(ComplexF32, N^2)
+        y = randn(ComplexF32, N^2 ÷ 2)
+        check_sampling_action(adapted, array_type, x, y, source * x, adjoint(source) * y)
       end
 
       @testset "FFTOp rebuilds plans and preserves action" begin
@@ -750,12 +883,16 @@ struct UnsupportedAdaptTarget end
   toeplitz = with(nfft_backend => NFFT.backend()) do
     normalOperator(nfft)
   end
+  sampling_index = SamplingOp(Float32; pattern = [1, 3], shape = (4,))
+  sampling_mask = SamplingOp(Float32; pattern = [true, false, true])
   radon_op = RadonOp(Float32; shape=(8, 8), angles=collect(range(0f0, Float32(π), 4)))
 
   for target in (UnsupportedAdaptTarget, AbstractVector)
     @test_throws ArgumentError Adapt.adapt(target, fft)
     @test_throws ArgumentError Adapt.adapt(target, nfft)
     @test_throws ArgumentError Adapt.adapt(target, toeplitz)
+    @test_throws ArgumentError Adapt.adapt(target, sampling_index)
+    @test_throws ArgumentError Adapt.adapt(target, sampling_mask)
     @test_throws ArgumentError Adapt.adapt(target, radon_op)
   end
 end
