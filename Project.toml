@@ -26,7 +26,7 @@ RadonKA = "86de8297-835b-47df-b249-c04e8db91db5"
 [compat]
 Adapt = "4"
 Aqua = "0.8"
-julia = "1.9"
+julia = "1.10"
 GPUArrays = "11"
 InteractiveUtils = "1"
 KernelAbstractions = "0.9"
