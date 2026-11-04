@@ -10,6 +10,9 @@ Generates a `RadonOp` which evaluates the Radon transform operator and its adjoi
 * `geometry`                - Radon geometry descriptor (default: parallel beam circle)
 * `μ`                       - optional attenuation map (for attenuated Radon transform)
 * `S`                       - storage type for internal vectors (default: `Vector{T}`)
+
+`Adapt.adapt(target, op)` rebuilds the operator for `target` with the same shape and
+geometry; array `angles` and `μ` are adapted to `target`, ranges and scalars are kept.
 """
 function LinearOperatorCollection.RadonOp(::Type{T}; shape::NTuple{N, Int}, angles,
    geometry = RadonParallelCircle(shape[1], -(shape[1]-1)÷2:(shape[1]-1)÷2), μ = nothing, S = Vector{T}) where {T, N}
@@ -32,6 +35,7 @@ mutable struct RadonOpImpl{T, vecT <: AbstractVector{T}, vecT2, G, A} <: RadonOp
   const angles :: vecT2
   const geometry :: G
   const μ :: A
+  const shape :: Tuple{Vararg{Int}}
 end
 
 LinearOperators.storage_type(::RadonOpImpl{T, vecT}) where {T, vecT} = vecT
@@ -46,7 +50,13 @@ function RadonOpImpl(T::Type; shape::NTuple{N, Int64}, angles, geometry, μ, S) 
   (res, x) -> prod_radon!(res, x, shape, angles, geometry, μ),
   nothing, 
   (res, x) -> ctprod_radon!(res, x, (N_sinogram, N_angles, d), angles, geometry, μ),
-  0, 0, 0, S(undef, 0), S(undef, 0), angles, geometry, μ)
+  0, 0, 0, S(undef, 0), S(undef, 0), angles, geometry, μ, shape)
+end
+
+function Adapt.adapt_structure(to, op::RadonOpImpl)
+  target_storage = LinearOperatorCollection._adapt_target_storage(to, op.Mv, "RadonOp")
+  return RadonOp(eltype(op); shape=op.shape, angles=Adapt.adapt(to, op.angles),
+                 geometry=op.geometry, μ=Adapt.adapt(to, op.μ), S=typeof(target_storage))
 end
 
 prod_radon!(res::vecT, x::vecT, shape, angles::vecT2, geometry::G, μ::A) where {vecT, vecT2, G, A} = copyto!(res, radon(reshape(x, shape), angles; geometry, μ))
