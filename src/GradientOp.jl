@@ -15,20 +15,14 @@ directional gradient operator along the dimensions `dims` for an array of size `
 
 # Moving to another array backend
 
-    Adapt.adapt(CuArray, op)
-
-returns a new gradient operator for the target backend, and `copy(op)` returns a new one with
-the same storage type. The target is the backing array type without element-type parameters
-(e.g. `Array`, `JLArray`, `CuArray` or `ROCArray`). Unlike `S`, which takes a parameterized type
-such as `CuArray{T, 1}`, an element-typed target such as `Array{Float64}` is not supported, even
-when its element type matches `op`. Adapting does not change the precision: choose `T` at
-construction. Both rebuild the operator and its temporary storage from `shape` and the
-directions taken from `dims` at construction; a later change of the vector passed as `dims`, or
-an iterator consumed by the construction, has no effect. `op` itself is not modified. The
-directions stay on the host. An element-typed target whose element type differs from `op`, such
-as `CuArray{Float32}` for a `Float64` operator, throws an `ArgumentError`. An operator built with
-an `S` of another element type cannot be adapted to any target and throws an `ArgumentError`;
-`copy` keeps it as it is.
+`Adapt.adapt(target, op)`, and `copy(op)` with the same storage type, rebuild the operator and
+its temporary storage from `shape` and the directions taken from `dims` at construction; a later
+change of the vector passed as `dims`, or an iterator consumed by the construction, has no
+effect. `op` itself is not modified. The directions stay on the host. A target whose storage
+element type differs from `op`, such as `CuArray{Float32}` for a `Float64` operator, throws an
+`ArgumentError`. An operator built with an `S` of another element type cannot be adapted to any
+target and throws an `ArgumentError`; `copy` keeps it as it is. See
+[Moving an Operator to Another Backend](@ref) for the supported targets.
 """
 function GradientOp(::Type{T}; shape::NTuple{N,Int}, dims=1:length(shape), kwargs...) where {T <: Number, N}
   return GradientOpImpl(T, shape, dims; kwargs...)

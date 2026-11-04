@@ -12,7 +12,8 @@ Generates a `RadonOp` which evaluates the Radon transform operator and its adjoi
 * `S`                       - storage type for internal vectors (default: `Vector{T}`)
 
 `Adapt.adapt(target, op)` rebuilds the operator for `target` with the same shape and
-geometry; array `angles` and `μ` are adapted to `target`, ranges and scalars are kept.
+geometry; array `angles` and `μ` are adapted to `target`, ranges and scalars are kept. See
+[Moving an Operator to Another Backend](@ref) for the supported targets.
 """
 function LinearOperatorCollection.RadonOp(::Type{T}; shape::NTuple{N, Int}, angles,
    geometry = RadonParallelCircle(shape[1], -(shape[1]-1)÷2:(shape[1]-1)÷2), μ = nothing, S = Vector{T}) where {T, N}
