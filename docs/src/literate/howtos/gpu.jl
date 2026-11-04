@@ -19,7 +19,7 @@ LinearOperators.storage_type(fop) == typeof(storage)
 # GPU operators can be used just like the other operators. Note however, that a GPU operator does not necessarily work with a CPU vector.
 
 # ## Moving an Operator to Another Backend
-# Operators that implement [Adapt.jl](https://github.com/JuliaGPU/Adapt.jl) support can be moved to another array backend with `Adapt.adapt(target, op)`.
+# Operators that support [Adapt.jl](https://github.com/JuliaGPU/Adapt.jl) can be moved to another array backend with `Adapt.adapt(target, op)`.
 # Which backends are supported depends on the operator and the target, and not every operator in LinearOperatorCollection implements Adapt.
 
 # The target is the backing array type without element-type parameters, such as `Array`, `CuArray` or `ROCArray`.
