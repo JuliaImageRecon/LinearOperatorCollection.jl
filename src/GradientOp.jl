@@ -17,13 +17,16 @@ directional gradient operator along the dimensions `dims` for an array of size `
 
     Adapt.adapt(CuArray, op)
 
-returns a new gradient operator for the target array type (e.g. `Array`, `JLArray`, `CuArray`
-or `ROCArray`), and `copy(op)` returns a new one with the same storage type. Both rebuild the
-operator and its temporary storage from `shape` and the directions taken from `dims` at
-construction; a later change of the vector passed as `dims`, or an iterator consumed by the
-construction, has no effect. `op` itself is not modified. The directions stay on the host.
-The adapted storage must have the element type of `op`: an element-typed target such as
-`CuArray{Float32}` for a `Float64` operator throws an `ArgumentError`. An operator built with
+returns a new gradient operator for the target backend, and `copy(op)` returns a new one with
+the same storage type. The target is the backing array type without element-type parameters
+(e.g. `Array`, `JLArray`, `CuArray` or `ROCArray`). Unlike `S`, which takes a parameterized type
+such as `CuArray{T, 1}`, an element-typed target such as `Array{Float64}` is not supported, even
+when its element type matches `op`. Adapting does not change the precision: choose `T` at
+construction. Both rebuild the operator and its temporary storage from `shape` and the
+directions taken from `dims` at construction; a later change of the vector passed as `dims`, or
+an iterator consumed by the construction, has no effect. `op` itself is not modified. The
+directions stay on the host. An element-typed target whose element type differs from `op`, such
+as `CuArray{Float32}` for a `Float64` operator, throws an `ArgumentError`. An operator built with
 an `S` of another element type cannot be adapted to any target and throws an `ArgumentError`;
 `copy` keeps it as it is.
 """

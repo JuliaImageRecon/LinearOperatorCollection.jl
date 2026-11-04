@@ -17,3 +17,22 @@ fop = FFTOp(eltype(image_gpu), shape = (N, N), S = typeof(storage))
 LinearOperators.storage_type(fop) == typeof(storage)
 
 # GPU operators can be used just like the other operators. Note however, that a GPU operator does not necessarily work with a CPU vector.
+
+# ## Moving an Operator to Another Backend
+# Operators that implement [Adapt.jl](https://github.com/JuliaGPU/Adapt.jl) support can be moved to another array backend with `Adapt.adapt(target, op)`.
+# Which backends are supported depends on the operator and the target, and not every operator in LinearOperatorCollection implements Adapt.
+
+# The target is the backing array type without element-type parameters, such as `Array`, `CuArray` or `ROCArray`.
+# LinearOperatorCollection does not support element-typed targets such as `Array{ComplexF64}` or `CuArray{Float32}`, even when the element type matches the operator.
+# Adapting moves an operator to another backend; it is not the way to change the operator's precision. Choose the element type when you construct the operator.
+
+# This differs from the `S` keyword above, which takes a parameterized storage type such as `CuArray{T, 1}`:
+# ```julia
+# using LinearOperatorCollection, Adapt
+# op = GradientOp(Float32; shape = (32, 32))
+# op_cpu = Adapt.adapt(Array, op)    # not Array{Float32}
+#
+# using CUDA                         # requires CUDA.jl and a supported NVIDIA GPU
+# op_gpu = Adapt.adapt(CuArray, op)  # not CuArray{Float32}
+# ```
+# GPU targets require the corresponding backend package, such as CUDA.jl or AMDGPU.jl, and supported hardware.
