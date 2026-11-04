@@ -426,6 +426,43 @@ function testDiagOp(N=32,K=2;arrayType = Array,scheduler = DynamicScheduler())
 
 end
 
+function testRowBlockOp(M=24, N=16, K=3; arrayType = Array, scheduler = DynamicScheduler())
+  A = rand(ComplexF64, M, N)
+  x = rand(ComplexF64, N)
+  y = rand(ComplexF64, M)
+  Ad, xd, yd = arrayType(A), arrayType(x), arrayType(y)
+
+  ops = Dict(
+    "interleaved" => RowBlockOp(Ad, K; scheduler),
+    "contiguous" => RowBlockOp(Ad, K; mode = :contiguous, scheduler),
+    "random" => RowBlockOp(Ad, K; mode = :random, scheduler),
+    "given blocks" => RowBlockOp([Ad[1:10, :], Ad[11:M, :]]; scheduler))
+  for (name, op) in ops
+    @testset "RowBlockOp $name" begin
+      check_storage(op, arrayType)
+      @test size(op) == (M, N)
+      @test Array(op * xd) ≈ A * x
+      @test Array(transpose(op) * yd) ≈ transpose(A) * y
+      @test Array(adjoint(op) * yd) ≈ adjoint(A) * y
+      @test Array(normalOperator(op) * xd) ≈ adjoint(A) * A * x
+      w = rand(M)
+      W = WeightingOp(arrayType(ComplexF64.(w)))
+      @test Array(normalOperator(op, W) * xd) ≈ adjoint(A) * (w .* (A * x))
+      # the blocks are the rows of A
+      for (block, rows) in rowblocks(op)
+        @test Array(block) ≈ A[collect(rows), :]
+      end
+    end
+  end
+
+  # interleaved rows of the matrix
+  @test [collect(r) for (_, r) in rowblocks(RowBlockOp(A, K))] == [collect(k:K:M) for k in 1:K]
+  # errors: rows that are no partition, blocks with different numbers of columns
+  @test_throws ArgumentError RowBlockOp([A[1:12, :], A[13:M, :]], [1:12, 12:23])
+  @test_throws DimensionMismatch RowBlockOp([A[1:12, :], A[13:M, 1:N-1]])
+  @test_throws ArgumentError RowBlockOp(A, K; mode = :spiral)
+end
+
 function testRadonOp(N=32;arrayType = Array)
   x = arrayType(rand(N, N))
   xop = vec(x)
@@ -480,6 +517,10 @@ end
     @info "test DiagOp: $arrayType"
     for scheduler in [DynamicScheduler(), StaticScheduler(), SerialScheduler()]
       @testset testDiagOp(;arrayType, scheduler = scheduler)
+    end
+    @info "test RowBlockOp: $arrayType"
+    for scheduler in [DynamicScheduler(), SerialScheduler()]
+      @testset testRowBlockOp(;arrayType, scheduler = scheduler)
     end
     @info "test RadonOp: $arrayType"
     @testset testRadonOp(;arrayType) # Stackoverflow for kernelabstraction
