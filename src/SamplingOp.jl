@@ -13,9 +13,10 @@ Two modes are supported:
 * Boolean mask without `shape`: multiplies the input elementwise with a copy of
   `pattern` stored on the backend of `S`.
 
-`Adapt.adapt(to, op)` rebuilds the operator for the storage type `to` from its
+`Adapt.adapt(to, op)` rebuilds the operator for the target `to` from its
 effective pattern. Integer indices are copied and stay host arrays; the Boolean
-mask is copied to the target backend.
+mask is copied to the target backend. See
+[Moving an Operator to Another Backend](@ref) for the supported targets.
 
 # Arguments
 * `pattern`      - integer indices or Boolean mask

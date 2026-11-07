@@ -38,8 +38,9 @@ of the blocks applied to their rows. The products of the blocks run in parallel 
 the adjoint sums the blocks one after the other.
 
 Blocks with contiguous rows (`UnitRange`s) work on views of the data; other rows are gathered into and scattered
-from a buffer per block (with index vectors on the device of the blocks, see `Adapt.adapt`). Reordering the data
-such that every block is contiguous avoids these copies.
+from a buffer per block (with index vectors on the device of the blocks, see
+[Moving an Operator to Another Backend](@ref)). Reordering the data such that every block is contiguous avoids these
+copies.
 
 The third form splits the rows of a matrix into `nblocks` blocks, as copies of the rows: `:interleaved` takes every
 `nblocks`-th row (`k:nblocks:m`), `:contiguous` consecutive rows, `:random` a random partition drawn with `rng`.

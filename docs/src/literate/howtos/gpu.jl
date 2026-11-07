@@ -20,7 +20,11 @@ LinearOperators.storage_type(fop) == typeof(storage)
 
 # ## Moving an Operator to Another Backend
 # Operators that support [Adapt.jl](https://github.com/JuliaGPU/Adapt.jl) can be moved to another array backend with `Adapt.adapt(target, op)`.
-# Which backends are supported depends on the operator and the target, and not every operator in LinearOperatorCollection implements Adapt.
+# Which backends are supported depends on the operator and the target. The following operators implement Adapt:
+# * `FFTOp`, `NFFTOp` (including its Toeplitz normal operator) and `RadonOp`
+# * `GradientOp`, `SamplingOp` and `WeightingOp`
+# * `DiagOp`, `ProdOp`, `RowBlockOp` and `NormalOp`, and the normal operators of `DiagOp`, `ProdOp` and `RowBlockOp`. These are built from other operators and adapt them, so the target must also be supported by each of those operators.
+# Other operators, such as `WaveletOp`, `DCTOp` and `DSTOp`, do not implement Adapt.
 
 # The target is the backing array type without element-type parameters, such as `Array`, `CuArray` or `ROCArray`.
 # LinearOperatorCollection does not support element-typed targets such as `Array{ComplexF64}` or `CuArray{Float32}`, even when the element type matches the operator.
