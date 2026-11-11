@@ -181,6 +181,94 @@ end
 
 storage_vector_type(array_type, T) = typeof(array_type(zeros(T, 0)))
 
+function check_nested_prod_adapt(array_type, N)
+  left = WeightingOp(rand(Float32, N))
+  right = WeightingOp(rand(Float32, N))
+  parent = ProdOp(left, right)
+  weights = WeightingOp(rand(Float32, N))
+  source_prod = ProdOp(left, parent)
+  source_normal = LinearOperatorCollection.NormalOpImpl(source_prod, weights)
+  source_prod_normal = normalOperator(source_prod)
+
+  # Initialize every non-empty source scratch buffer before taking the
+  # snapshots. Adapt must not mutate any of these host-side values.
+  for tmp in (parent.tmp, source_prod.tmp, source_normal.tmp,
+              source_prod_normal.tmp, source_prod_normal.normalOpInner.tmp)
+    tmp .= rand(Float32, length(tmp))
+  end
+  source_snapshot = (
+    left_weights = copy(left.weights),
+    right_weights = copy(right.weights),
+    weights = copy(weights.weights),
+    parent_tmp = copy(parent.tmp),
+    source_prod_tmp = copy(source_prod.tmp),
+    source_normal_tmp = copy(source_normal.tmp),
+    source_prod_normal_tmp = copy(source_prod_normal.tmp),
+    source_prod_normal_inner_tmp = copy(source_prod_normal.normalOpInner.tmp),
+    source_prod_normal_inner_weights = copy(source_prod_normal.normalOpInner.weights.weights),
+  )
+
+  adapted_prod = Adapt.adapt(array_type, source_prod)
+  adapted_normal = Adapt.adapt(array_type, source_normal)
+  adapted_prod_normal = Adapt.adapt(array_type, source_prod_normal)
+
+  # Check immutability before any multiplication can legitimately
+  # update the source scratch buffers.
+  @test left.weights == source_snapshot.left_weights
+  @test right.weights == source_snapshot.right_weights
+  @test weights.weights == source_snapshot.weights
+  @test parent.tmp == source_snapshot.parent_tmp
+  @test source_prod.tmp == source_snapshot.source_prod_tmp
+  @test source_normal.tmp == source_snapshot.source_normal_tmp
+  @test source_prod_normal.tmp == source_snapshot.source_prod_normal_tmp
+  @test source_prod_normal.normalOpInner.tmp == source_snapshot.source_prod_normal_inner_tmp
+  @test source_prod_normal.normalOpInner.weights.weights == source_snapshot.source_prod_normal_inner_weights
+
+  check_adapted_storage(adapted_prod, array_type)
+  @test typeof(adapted_prod.tmp) <: array_type
+  @test typeof(adapted_prod.B.tmp) <: array_type
+  @test typeof(adapted_prod.B.A.weights) <: array_type
+
+  check_adapted_storage(adapted_normal, array_type)
+  @test typeof(adapted_normal.tmp) <: array_type
+  check_adapted_storage(adapted_normal.parent, array_type)
+  check_adapted_storage(adapted_normal.weights, array_type)
+
+  check_adapted_storage(adapted_prod_normal, array_type)
+  @test typeof(adapted_prod_normal.tmp) <: array_type
+  check_adapted_storage(adapted_prod_normal.opOuter, array_type)
+  check_adapted_storage(adapted_prod_normal.normalOpInner, array_type)
+  if adapted_prod_normal.opOuter isa WeightingOp
+    @test typeof(adapted_prod_normal.opOuter.weights) <: array_type
+  else
+    @test typeof(adapted_prod_normal.opOuter.tmp) <: array_type
+  end
+  @test typeof(adapted_prod_normal.normalOpInner.tmp) <: array_type
+
+  x = rand(Float32, N)
+  check_adapted_mul(source_prod, adapted_prod, x, array_type)
+  check_adapted_mul(source_normal, adapted_normal, x, array_type)
+  check_adapted_mul(source_prod_normal, adapted_prod_normal, x, array_type)
+end
+
+function check_sampling_fft_adapt(array_type, N)
+  pattern = [mod1(3i + j, N) for i in 1:N÷2, j in 1:N]
+  source = SamplingOp(ComplexF32; pattern, shape = (N, N)) ∘
+           FFTOp(ComplexF32; shape = (N, N), S = Vector{ComplexF32})
+  @test size(source) == (N^2 ÷ 2, N^2)
+  adapted = Adapt.adapt(array_type, source)
+  @test adapted isa ProdOp
+  @test adapted.A isa SamplingOpImpl
+  check_adapted_storage(adapted, array_type)
+  check_adapted_storage(adapted.A, array_type)
+  check_adapted_storage(adapted.B, array_type)
+  @test typeof(adapted.tmp) <: array_type
+  @test adapted.A.pattern == source.A.pattern
+  x = randn(ComplexF32, N^2)
+  y = randn(ComplexF32, N^2 ÷ 2)
+  check_sampling_action(adapted, array_type, x, y, source * x, adjoint(source) * y)
+end
+
 @testset "Adapt reconstruction" begin
   N = 16
 
@@ -202,73 +290,7 @@ storage_vector_type(array_type, T) = typeof(array_type(zeros(T, 0)))
       end
 
       @testset "ProdOp, NormalOpImpl, and ProdNormalOp recurse" begin
-        left = WeightingOp(rand(Float32, N))
-        right = WeightingOp(rand(Float32, N))
-        parent = ProdOp(left, right)
-        weights = WeightingOp(rand(Float32, N))
-        source_prod = ProdOp(left, parent)
-        source_normal = LinearOperatorCollection.NormalOpImpl(source_prod, weights)
-        source_prod_normal = normalOperator(source_prod)
-
-        # Initialize every non-empty source scratch buffer before taking the
-        # snapshots. Adapt must not mutate any of these host-side values.
-        for tmp in (parent.tmp, source_prod.tmp, source_normal.tmp,
-                    source_prod_normal.tmp, source_prod_normal.normalOpInner.tmp)
-          tmp .= rand(Float32, length(tmp))
-        end
-        source_snapshot = (
-          left_weights = copy(left.weights),
-          right_weights = copy(right.weights),
-          weights = copy(weights.weights),
-          parent_tmp = copy(parent.tmp),
-          source_prod_tmp = copy(source_prod.tmp),
-          source_normal_tmp = copy(source_normal.tmp),
-          source_prod_normal_tmp = copy(source_prod_normal.tmp),
-          source_prod_normal_inner_tmp = copy(source_prod_normal.normalOpInner.tmp),
-          source_prod_normal_inner_weights = copy(source_prod_normal.normalOpInner.weights.weights),
-        )
-
-        adapted_prod = Adapt.adapt(array_type, source_prod)
-        adapted_normal = Adapt.adapt(array_type, source_normal)
-        adapted_prod_normal = Adapt.adapt(array_type, source_prod_normal)
-
-        # Check immutability before any multiplication can legitimately
-        # update the source scratch buffers.
-        @test left.weights == source_snapshot.left_weights
-        @test right.weights == source_snapshot.right_weights
-        @test weights.weights == source_snapshot.weights
-        @test parent.tmp == source_snapshot.parent_tmp
-        @test source_prod.tmp == source_snapshot.source_prod_tmp
-        @test source_normal.tmp == source_snapshot.source_normal_tmp
-        @test source_prod_normal.tmp == source_snapshot.source_prod_normal_tmp
-        @test source_prod_normal.normalOpInner.tmp == source_snapshot.source_prod_normal_inner_tmp
-        @test source_prod_normal.normalOpInner.weights.weights == source_snapshot.source_prod_normal_inner_weights
-
-        check_adapted_storage(adapted_prod, array_type)
-        @test typeof(adapted_prod.tmp) <: array_type
-        @test typeof(adapted_prod.B.tmp) <: array_type
-        @test typeof(adapted_prod.B.A.weights) <: array_type
-
-        check_adapted_storage(adapted_normal, array_type)
-        @test typeof(adapted_normal.tmp) <: array_type
-        check_adapted_storage(adapted_normal.parent, array_type)
-        check_adapted_storage(adapted_normal.weights, array_type)
-
-        check_adapted_storage(adapted_prod_normal, array_type)
-        @test typeof(adapted_prod_normal.tmp) <: array_type
-        check_adapted_storage(adapted_prod_normal.opOuter, array_type)
-        check_adapted_storage(adapted_prod_normal.normalOpInner, array_type)
-        if adapted_prod_normal.opOuter isa WeightingOp
-          @test typeof(adapted_prod_normal.opOuter.weights) <: array_type
-        else
-          @test typeof(adapted_prod_normal.opOuter.tmp) <: array_type
-        end
-        @test typeof(adapted_prod_normal.normalOpInner.tmp) <: array_type
-
-        x = rand(Float32, N)
-        check_adapted_mul(source_prod, adapted_prod, x, array_type)
-        check_adapted_mul(source_normal, adapted_normal, x, array_type)
-        check_adapted_mul(source_prod_normal, adapted_prod_normal, x, array_type)
+        check_nested_prod_adapt(array_type, N)
       end
 
       @testset "DiagOp and DiagNormalOp recurse" begin
@@ -437,21 +459,7 @@ storage_vector_type(array_type, T) = typeof(array_type(zeros(T, 0)))
       end
 
       @testset "SamplingOp ∘ FFTOp" begin
-        pattern = [mod1(3i + j, N) for i in 1:N÷2, j in 1:N]
-        source = SamplingOp(ComplexF32; pattern, shape = (N, N)) ∘
-                 FFTOp(ComplexF32; shape = (N, N), S = Vector{ComplexF32})
-        @test size(source) == (N^2 ÷ 2, N^2)
-        adapted = Adapt.adapt(array_type, source)
-        @test adapted isa ProdOp
-        @test adapted.A isa SamplingOpImpl
-        check_adapted_storage(adapted, array_type)
-        check_adapted_storage(adapted.A, array_type)
-        check_adapted_storage(adapted.B, array_type)
-        @test typeof(adapted.tmp) <: array_type
-        @test adapted.A.pattern == source.A.pattern
-        x = randn(ComplexF32, N^2)
-        y = randn(ComplexF32, N^2 ÷ 2)
-        check_sampling_action(adapted, array_type, x, y, source * x, adjoint(source) * y)
+        check_sampling_fft_adapt(array_type, N)
       end
 
       @testset "FFTOp rebuilds plans and preserves action" begin
