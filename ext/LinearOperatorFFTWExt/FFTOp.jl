@@ -43,7 +43,8 @@ returns an operator which performs an FFT on Arrays of type T
 `Adapt.adapt(target, op)` preserves the shape, shift, and normalization
 convention, planner options, and rebuilds the plans, workspaces, and closures
 for `target`. If `cache=false`, adapting the operator raises an explicit
-`ArgumentError` because the planner options were not retained.
+`ArgumentError` because the planner options were not retained. See
+[Moving an Operator to Another Backend](@ref) for the supported targets.
 """
 function LinearOperatorCollection.FFTOp(T::Type; shape::NTuple{D,Int64}, shift::Bool=true, unitary::Bool=true, S = Vector{Complex{real(T)}}, cache::Bool=true, kwargs...) where D
   

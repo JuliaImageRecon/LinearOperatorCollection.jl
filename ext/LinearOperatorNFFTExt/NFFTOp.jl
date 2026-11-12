@@ -21,7 +21,8 @@ generates a `NFFTOpImpl` which evaluates the MRI Fourier signal encoding operato
 settings, and `toeplitz`; it replays the cached constructor arguments with
 target-backed nodes and rebuilds plans, workspaces, and closures for the
 target. If `cache=false`, adapting the operator raises an explicit
-`ArgumentError` because the constructor arguments were not retained.
+`ArgumentError` because the constructor arguments were not retained. See
+[Moving an Operator to Another Backend](@ref) for the supported targets.
 """
 function LinearOperatorCollection.NFFTOp(::Type{T};
     shape::Tuple, nodes::AbstractMatrix{U}, toeplitz=false, oversamplingFactor=1.25, 
@@ -195,7 +196,8 @@ Construct a Toeplitz normal operator for an NFFT. `Adapt.adapt(target, op)`
 keeps the shape, weights, Toeplitz kernel `λ`, and FFT planner options, and
 rebuilds the FFT plans, workspaces, and closures on the target. Set
 `cache=false` when constructing the operator to opt out of retaining planner
-kwargs; adapting such an operator raises an explicit `ArgumentError`.
+kwargs; adapting such an operator raises an explicit `ArgumentError`. See
+[Moving an Operator to Another Backend](@ref) for the supported targets.
 """
 function LinearOperatorCollection.NFFTToeplitzNormalOp(shape, W, fftplan, ifftplan,
                                                        λ, xL1::matT, xL2::matT,
