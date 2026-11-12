@@ -23,8 +23,9 @@ LinearOperators.storage_type(fop) == typeof(storage)
 # Which backends are supported depends on the operator and the target. The following operators implement Adapt:
 # * `FFTOp`, `NFFTOp` (including its Toeplitz normal operator) and `RadonOp`
 # * `GradientOp`, `SamplingOp` and `WeightingOp`
+# * `WaveletOp`. Its transform runs on the CPU; on another backend, input and output are copied through host arrays.
 # * `DiagOp`, `ProdOp`, `RowBlockOp` and `NormalOp`, and the normal operators of `DiagOp`, `ProdOp` and `RowBlockOp`. These are built from other operators and adapt them, so the target must also be supported by each of those operators.
-# Other operators, such as `WaveletOp`, `DCTOp` and `DSTOp`, do not implement Adapt.
+# Other operators, such as `DCTOp` and `DSTOp`, do not implement Adapt.
 
 # The target is the backing array type without element-type parameters, such as `Array`, `CuArray` or `ROCArray`.
 # LinearOperatorCollection does not support element-typed targets such as `Array{ComplexF64}` or `CuArray{Float32}`, even when the element type matches the operator.
