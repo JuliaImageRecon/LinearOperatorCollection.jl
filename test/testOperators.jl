@@ -268,6 +268,33 @@ function testWavelet(M=64,N=60;arrayType = Array)
   x_reco = reshape( adjoint(WOp)*x_wavelet, M, N)
 
   @test norm(x_reco - x) / norm(x) ≈ 0 atol=0.001
+
+  testWaveletAdapt(M, N, Float64; arrayType)
+end
+
+# Adapt and copy rebuild the shape without singleton dimensions, the wavelet and the host arrays
+function testWaveletAdapt(M, N, T; arrayType = Array)
+  x = rand(T, M*N)
+  source = WaveletOp(T, shape=(M,1,N), wt=wavelet(WT.haar))
+  @test createLinearOperator(WaveletOp{T}; shape=(M,N)) isa WaveletOp{T}
+  y = source*x
+  z = adjoint(source)*y
+  tmp = copy(rand!(source.tmp))
+  target = Adapt.adapt(arrayType, source)
+  copied = copy(target)
+  back = Adapt.adapt(Array, copied)
+  @test source.tmp == tmp
+  for (op, S) in ((target, arrayType), (copied, arrayType), (source, Array), (back, Array), (target, arrayType))
+    check_storage(op, S)
+    @test op isa WaveletOp{T}
+    @test size(op) == (M*N, M*N) && op.shape == (M,N) && op.wt === source.wt
+    @test Array(op*S(x)) ≈ y
+    @test Array(adjoint(op)*S(y)) ≈ z
+  end
+  ops = (source, target, copied, back)
+  for field in (:op, :tmp, :tmpRes)
+    @test allunique(map(op -> objectid(getproperty(op, field)), ops))
+  end
 end
 
 # test FourierOperators
